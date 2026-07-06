@@ -87,7 +87,23 @@
   #ppBio{color:var(--muted);margin:16px 0 20px;font-size:.92rem;line-height:1.6;word-break:break-word}
   .pp-report{background:transparent;border:1px solid #7a4b52;color:#d98a92;border-radius:10px;padding:10px 26px;font-weight:700;cursor:pointer}
   .pp-report:hover{background:#7a4b52;color:#fff}
-  .bub{padding:12px 16px;border-radius:16px;font-size:1.02rem;line-height:1.55;word-break:break-word;background:var(--other);color:var(--text)}
+  .bub{position:relative;padding:12px 16px;border-radius:16px;font-size:1.02rem;line-height:1.55;word-break:break-word;background:var(--other);color:var(--text);cursor:pointer}
+  .reply-quote{border-left:3px solid var(--accent);padding:2px 8px;margin-bottom:5px;font-size:.82rem;color:var(--muted);opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .reacts{position:absolute;bottom:-11px;right:8px;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:0 6px;font-size:.86rem;line-height:1.5;box-shadow:0 1px 4px rgba(0,0,0,.35);display:none}
+  .reacts.on{display:block}
+  .row.me .reacts{right:auto;left:8px}
+  .bub.recalled{opacity:.55;font-style:italic;color:var(--muted);cursor:default}
+  .msg-menu{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:5px;box-shadow:0 10px 34px rgba(0,0,0,.5);min-width:132px}
+  .mm-reacts{display:flex;gap:2px;padding:4px;margin-bottom:4px;border-bottom:1px solid var(--border);justify-content:space-between}
+  .mm-react{font-size:23px;cursor:pointer;padding:3px 5px;border-radius:9px;transition:transform .1s}
+  .mm-react:hover{background:var(--panel2);transform:scale(1.15)}
+  .mm-item{padding:10px 14px;font-size:.94rem;cursor:pointer;border-radius:9px;color:var(--text)}
+  .mm-item:hover{background:var(--panel2)}
+  .mm-item.danger{color:#d98a92}
+  .reply-bar{display:none;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--border);background:var(--panel);font-size:.84rem}
+  .reply-bar.on{display:flex}
+  .reply-bar .rb-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:3px solid var(--accent);padding-left:8px;color:var(--muted)}
+  .reply-bar .rb-close{cursor:pointer;color:var(--muted);font-size:17px;flex:none}
   .row.me .bub{background:var(--me)}
   .ts{font-size:.64rem;color:var(--muted);align-self:flex-end;margin:0 4px}
   .sys{align-self:center;font-size:.76rem;color:var(--muted);padding:4px 0;text-align:center}
@@ -169,6 +185,7 @@
     </div>
     <div class="cmsgs" id="cmsgs"></div>
     <div class="typing" id="typing"><span>對方正在輸入</span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
+    <div class="reply-bar" id="replyBar"><span class="rb-text" id="rbText"></span><span class="rb-close" id="rbClose">✕</span></div>
     <div class="cin">
       <input id="cinput" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
       <button id="cSend">↑</button>
@@ -268,6 +285,8 @@
       else if(d.type==='resumed'){ resumeChat(d.partner); }
       else if(d.type==='resume_failed'){ setInChat(false); show('gate'); }
       else if(d.type==='msg'){ hideTyping(); addMsg(d,!!d.me); }
+      else if(d.type==='react'){ var _r=$('cmsgs').querySelector('[data-mid="'+d.mid+'"]'); if(_r) setReactOnRow(_r,d.emoji); updMsg(d.mid,function(m){m.react=d.emoji;}); }
+      else if(d.type==='recall'){ var _r2=$('cmsgs').querySelector('[data-mid="'+d.mid+'"]'); if(_r2) markRecalled(_r2); updMsg(d.mid,function(m){m.recalled=true;}); }
       else if(d.type==='typing'){ showTyping(); }
       else if(d.type==='sys'){ addSys(d.msg); }
       else if(d.type==='partner_profile'){ partnerAv=d.avatar||partnerAv; partnerProf.avatar=partnerAv; if(d.bio!==undefined)partnerProf.bio=d.bio; var ov=document.querySelectorAll('#cmsgs .row.other .av'); for(var i=0;i<ov.length;i++) ov[i].innerHTML=avHtml(partnerAv); }
@@ -287,12 +306,48 @@
 
   function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||''; $('pinfo').textContent='已配對'; }
   function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; clearMsgs(); setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
-  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ renderMsg(mm.text,mm.me,mm.ts); }); $('cinput').focus(); }
+  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ var row=renderMsg(mm.text,mm.me,mm.ts,mm.mid,mm.reply,mm.react); if(mm.recalled) markRecalled(row); }); $('cinput').focus(); }
   var chatMsgs=[];
   function persistMsgs(){ try{ sessionStorage.setItem('hihi_msgs',JSON.stringify(chatMsgs.slice(-200))); }catch(e){} }
   function clearMsgs(){ chatMsgs=[]; try{ sessionStorage.removeItem('hihi_msgs'); }catch(e){} }
-  function renderMsg(text,me,ts){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div><div class="bub">'+text+'</div><div class="ts">'+fmt(ts)+'</div>'; row.querySelector('.av').onclick=(me?openProfile:openPartnerView); el.appendChild(row); el.scrollTop=el.scrollHeight; }
-  function addMsg(m,me){ renderMsg(m.text,me,m.ts); chatMsgs.push({text:m.text,me:!!me,ts:m.ts}); persistMsgs(); }
+  var REACTS=['👍','❤️','😮','😂','😡'];
+  function renderMsg(text,me,ts,mid,reply,react){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); if(mid)row.setAttribute('data-mid',mid);
+    var rq=(reply&&reply.text)?'<div class="reply-quote">↩ '+reply.text+'</div>':'';
+    row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div>'
+      +'<div class="bub">'+rq+'<span class="msgtext">'+text+'</span><div class="reacts'+(react?' on':'')+'">'+(react||'')+'</div></div>'
+      +'<div class="ts">'+fmt(ts)+'</div>';
+    row.querySelector('.av').onclick=(me?openProfile:openPartnerView);
+    var bub=row.querySelector('.bub'); bub.onclick=function(ev){ openMsgMenu(row,ev); }; bub.oncontextmenu=function(ev){ openMsgMenu(row,ev); };
+    el.appendChild(row); el.scrollTop=el.scrollHeight; return row; }
+  function addMsg(m,me){ renderMsg(m.text,me,m.ts,m.mid,m.reply,null); chatMsgs.push({text:m.text,me:!!me,ts:m.ts,mid:m.mid||null,reply:m.reply||null,react:null,recalled:false}); persistMsgs(); }
+
+  // ---- 訊息選單（回覆 / 複製 / 收回 / 表情反應）----
+  var curMenu=null, replyTo=null;
+  function closeMsgMenu(){ if(curMenu){ curMenu.remove(); curMenu=null; document.removeEventListener('click',closeMsgMenu); } }
+  function openMsgMenu(row,ev){ ev.preventDefault(); ev.stopPropagation(); closeMsgMenu();
+    var bub=row.querySelector('.bub'); if(bub.classList.contains('recalled')) return;
+    var me=row.classList.contains('me'); var mid=row.getAttribute('data-mid'); var mt=row.querySelector('.msgtext'); var text=mt?mt.textContent:'';
+    var menu=document.createElement('div'); menu.className='msg-menu';
+    var h=''; if(!me) h+='<div class="mm-reacts">'+REACTS.map(function(e){return '<span class="mm-react" data-e="'+e+'">'+e+'</span>'}).join('')+'</div>';
+    h+='<div class="mm-item" data-act="reply">回覆</div><div class="mm-item" data-act="copy">複製訊息</div>'; if(me) h+='<div class="mm-item danger" data-act="recall">收回</div>';
+    menu.innerHTML=h; document.body.appendChild(menu); curMenu=menu;
+    var br=bub.getBoundingClientRect(), mw=menu.offsetWidth, mh=menu.offsetHeight;
+    var top=br.top-mh-6; if(top<8)top=br.bottom+6; if(top+mh>window.innerHeight-8)top=window.innerHeight-mh-8; if(top<8)top=8;
+    var left=me?(br.right-mw):br.left; if(left<8)left=8; if(left+mw>window.innerWidth-8)left=window.innerWidth-mw-8;
+    menu.style.top=top+'px'; menu.style.left=left+'px';
+    menu.querySelectorAll('.mm-react').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); doReact(mid,x.getAttribute('data-e'),row); closeMsgMenu(); }; });
+    menu.querySelectorAll('.mm-item').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); var a=x.getAttribute('data-act'); if(a==='copy')doCopy(text); else if(a==='reply')startReply(mid,text); else if(a==='recall')doRecall(mid,row); closeMsgMenu(); }; });
+    setTimeout(function(){ document.addEventListener('click',closeMsgMenu); },0);
+  }
+  function setReactOnRow(row,emoji){ var r=row.querySelector('.reacts'); if(r){ r.textContent=emoji||''; r.classList.toggle('on',!!emoji); } }
+  function markRecalled(row){ if(!row)return; var b=row.querySelector('.bub'); if(!b)return; b.classList.add('recalled'); var mt=b.querySelector('.msgtext'); if(mt)mt.textContent='訊息已收回'; var rq=b.querySelector('.reply-quote'); if(rq)rq.remove(); setReactOnRow(row,''); }
+  function updMsg(mid,fn){ for(var i=0;i<chatMsgs.length;i++) if(chatMsgs[i].mid===mid) fn(chatMsgs[i]); persistMsgs(); }
+  function doReact(mid,emoji,row){ if(!mid)return; setReactOnRow(row,emoji); updMsg(mid,function(m){m.react=emoji;}); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'react',mid:mid,emoji:emoji})); }
+  function doRecall(mid,row){ if(!mid)return; markRecalled(row); updMsg(mid,function(m){m.recalled=true;}); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'recall',mid:mid})); }
+  function doCopy(text){ try{ navigator.clipboard.writeText(text); }catch(e){ var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy')}catch(_){}; ta.remove(); } }
+  function startReply(mid,text){ replyTo={mid:mid,text:(text||'').slice(0,60)}; $('rbText').textContent='回覆：'+replyTo.text; $('replyBar').classList.add('on'); $('cinput').focus(); fitChat(); }
+  function cancelReply(){ replyTo=null; $('replyBar').classList.remove('on'); fitChat(); }
+  $('rbClose').onclick=cancelReply;
   function addSys(t){ var el=$('cmsgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
   function addLeftPrompt(){ hideTyping(); var el=$('cmsgs'); var w=document.createElement('div'); w.className='leave-prompt';
     w.innerHTML='<button class="rematch-btn">對方已離開聊天，點我重新配對</button><div class="report-hint">有遇到任何問題嗎？你可以進行檢舉</div>';
@@ -301,7 +356,7 @@
     w.querySelector('.report-hint').onclick=function(){ if(!confirm('檢舉剛才的對象並重新配對？')) return; if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'report_last'})); ws.send(JSON.stringify({type:'next'})); } goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   }
   function fmt(ts){ try{var d=new Date(ts);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}catch(e){return''} }
-  function sendMsg(){ var v=$('cinput').value.trim(); if(!v||!ws||ws.readyState!==1)return; ws.send(JSON.stringify({type:'msg',text:v})); $('cinput').value=''; }
+  function sendMsg(){ var v=$('cinput').value.trim(); if(!v||!ws||ws.readyState!==1)return; var p={type:'msg',text:v}; if(replyTo)p.replyTo=replyTo; ws.send(JSON.stringify(p)); $('cinput').value=''; cancelReply(); }
   $('cSend').onclick=sendMsg;
   $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
   $('cinput').addEventListener('input',function(){ var now=Date.now(); if(now-lastTyping>1500 && ws&&ws.readyState===1){ lastTyping=now; ws.send(JSON.stringify({type:'typing'})); } });

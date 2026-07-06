@@ -23,6 +23,8 @@ async function verifyAreYouBot(token) {
 }
 
 let seq = 1;
+let midSeq = 1;   // 每則訊息一個 id（收回/表情/回覆用來對應）
+const REACT_EMOJIS = ['👍', '❤️', '😮', '😂', '😡'];
 const clients = new Set();
 const waiting = [];
 const reports = new Map();              // ip -> { count, ts }
@@ -113,6 +115,7 @@ const BOT_M_SCRIPTS = [   // 男生：講完一串就離開
 ];
 const BOTS = [];
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function botMsg(text) { return { type: 'msg', text, ts: Date.now(), mid: 'm' + (midSeq++) }; }
 function botSend(bot, data) {   // 機器人「收到」server 訊息 → 只有女生會對真人講話反應
   let d; try { d = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
   if (d && d.type === 'msg' && !d.me && bot.kind === 'female') botReply(bot);
@@ -155,7 +158,7 @@ function botReply(bot) {   // 女生：對方講話→停頓一下再回一句
     else if (bot.step === 2) text = pick(BOT_AGE);
     else text = pick(BOT_FILLER);
     bot.step++;
-    send(human.ws, { type: 'msg', text, ts: Date.now() });
+    send(human.ws, botMsg(text));
   }, 1400 + Math.random() * 2400);
 }
 function maleNextLine(bot, delay) {   // 男生：照腳本一句句講，講完就離開
@@ -168,7 +171,7 @@ function maleNextLine(bot, delay) {   // 男生：照腳本一句句講，講完
       send(human.ws, { type: 'typing' });
       setTimeout(() => {
         if (bot.partner !== human) return;
-        send(human.ws, { type: 'msg', text: bot.mscript[bot.mi], ts: Date.now() });
+        send(human.ws, botMsg(bot.mscript[bot.mi]));
         bot.mi++;
         maleNextLine(bot, 3000 + Math.random() * 4000);
       }, 800 + Math.random() * 1200);
@@ -185,7 +188,7 @@ function botOnMatched(bot) {
   } else {
     clearTimeout(bot.silenceTimer);   // 女生通常等對方先講；太久沒人開口就主動破冰
     bot.silenceTimer = setTimeout(() => {
-      if (bot.partner && bot.step === 0) { send(bot.partner.ws, { type: 'msg', text: pick(BOT_GREET), ts: Date.now() }); bot.step = 1; }
+      if (bot.partner && bot.step === 0) { send(bot.partner.ws, botMsg(pick(BOT_GREET))); bot.step = 1; }
     }, 12000 + Math.random() * 9000);
   }
 }
@@ -284,13 +287,22 @@ function attach(wss) {
         if (!c.limiter.allow(c.id)) { send(ws, { type: 'sys', msg: '訊息太快了，慢一點～' }); return; }
         const chk = checkMessage(m.text);
         if (!chk.ok) { send(ws, { type: 'sys', msg: chk.msg || '這則訊息無法送出。' }); return; }
-        const payload = { type: 'msg', text: chk.text, ts: Date.now() };
+        let reply = null;
+        if (m.replyTo && m.replyTo.mid) reply = { mid: String(m.replyTo.mid).slice(0, 20), text: clean(m.replyTo.text, 60) };
+        const payload = { type: 'msg', text: chk.text, ts: Date.now(), mid: 'm' + (midSeq++), reply };
         send(c.partner.ws, payload);
         send(ws, { ...payload, me: true });
         return;
       }
 
       if (m.type === 'typing') { if (c.partner) send(c.partner.ws, { type: 'typing' }); return; }
+
+      if (m.type === 'recall') { if (c.partner) send(c.partner.ws, { type: 'recall', mid: String(m.mid || '').slice(0, 20) }); return; }
+
+      if (m.type === 'react') {
+        if (c.partner) { const e = String(m.emoji || '').slice(0, 8); if (REACT_EMOJIS.includes(e)) send(c.partner.ws, { type: 'react', mid: String(m.mid || '').slice(0, 20), emoji: e }); }
+        return;
+      }
 
       if (m.type === 'profile') {   // 中途改頭貼/自介 → 更新自己 + 即時通知對方
         c.avatar = sanitizeAvatar(m.avatar);
