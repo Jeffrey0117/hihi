@@ -10,6 +10,18 @@ const TOPICS = ['生活', '純聊', '時事娛樂', '工作學業', '感情'];
 const REPORT_THRESHOLD = 3;             // 累積被檢舉幾次 → 封鎖
 const BLOCK_MS = 30 * 60 * 1000;        // 封鎖時長
 
+// areyoubot 隱形 PoW 驗證：要聊要驗證。secret 只在後端，用 demo key，正式請去 admin 建 site 換掉。
+const AYB_SECRET = process.env.AREYOUBOT_SECRET || 'aybsk_demo';
+const AYB_VERIFY_URL = process.env.AREYOUBOT_VERIFY_URL || 'https://areyoubot.isnowfriend.com/api/verify';
+async function verifyAreYouBot(token) {
+  if (!token) return false;
+  try {
+    const r = await fetch(AYB_VERIFY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, secret: AYB_SECRET }) });
+    const d = await r.json();
+    return d.success === true;
+  } catch (e) { console.error('[hihi] areyoubot verify 失敗:', e.message); return false; }
+}
+
 let seq = 1;
 const clients = new Set();
 const waiting = [];
@@ -72,7 +84,7 @@ function attach(wss) {
   wss.on('connection', (ws, req) => {
     const c = {
       ws, id: seq++, nick: null, gender: null, mode: 'random', tags: [], code: '', bio: '', avatar: '😀',
-      partner: null, state: 'idle', avoid: new Set(),
+      partner: null, state: 'idle', avoid: new Set(), verified: false,
       limiter: createLimiter({ limit: 8, windowMs: 10000 }),
       ip: (req.headers['cf-connecting-ip'] || (req.socket && req.socket.remoteAddress) || 'unknown'),
     };
@@ -80,12 +92,19 @@ function attach(wss) {
     send(ws, { type: 'hello', topics: TOPICS, ...statsObj() });
     broadcastStats();
 
-    ws.on('message', (buf) => {
+    ws.on('message', async (buf) => {
       let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
 
       if (m.type === 'start') {
         if (isBlocked(c.ip)) { send(ws, { type: 'blocked' }); return; }
-        if (!m.verify) { send(ws, { type: 'need_verify' }); return; }   // 驗證強制（伺服器端也擋）
+        // 驗證強制：整個 session 驗一次。優先真 PoW token；areyoubot 服務未就緒時退回手動勾選(m.verify)。
+        if (!c.verified) {
+          let ok = false;
+          if (m.token) ok = await verifyAreYouBot(m.token);
+          if (!ok && m.verify === true) ok = true;   // fallback：服務未就緒時用手動驗證
+          if (!ok) { send(ws, { type: 'need_verify' }); return; }
+          c.verified = true;
+        }
         c.nick = nickOf(m.nick);
         c.gender = (m.gender === 'male' || m.gender === 'female') ? m.gender : null;
         c.mode = (m.mode === 'opposite') ? 'opposite' : 'random';
