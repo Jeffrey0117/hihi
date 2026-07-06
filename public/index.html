@@ -21,7 +21,7 @@
   /* gate */
   #gate{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;text-align:center}
   .me-chip{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 6px;cursor:pointer;margin-bottom:22px}
-  .me-chip .av{width:36px;height:36px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:20px}
+  .me-chip .av{width:44px;height:44px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
   .me-chip .t{font-size:.82rem;color:var(--muted)}
   #gate .logo{font-size:3.2rem;line-height:1;margin-bottom:6px}
   #gate .tag{color:var(--muted);font-size:.92rem;margin-bottom:8px}
@@ -68,24 +68,28 @@
   .report-hint{margin-top:12px;font-size:.78rem;color:var(--muted);cursor:pointer}
   .report-hint:hover{color:var(--text);text-decoration:underline}
   .chead{padding:10px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:rgba(36,32,40,.7)}
-  .chead .myav{width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;flex:none}
+  .chead .myav{width:44px;height:44px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;flex:none;overflow:hidden}
   .chead .pinfo{font-size:.82rem;color:var(--muted)}
   .chead .acts{margin-left:auto;display:flex;gap:8px}
   .cmsgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
   .row{display:flex;gap:8px;align-items:flex-end;max-width:82%}
   .row.me{align-self:flex-end;flex-direction:row-reverse}
   .row.other{align-self:flex-start}
-  .av{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--panel2);border:1px solid var(--border)}
+  .av{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--panel2);border:1px solid var(--border);overflow:hidden}
+  .av img,.myav img,.me-chip .av img,.big-av img,#ppAv img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
   .avc{cursor:pointer;transition:transform .12s}
   .avc:hover{transform:scale(1.08);border-color:var(--accent)}
   #ppBio{color:var(--muted);margin:16px 0 20px;font-size:.92rem;line-height:1.6;word-break:break-word}
   .pp-report{background:transparent;border:1px solid #7a4b52;color:#d98a92;border-radius:10px;padding:10px 26px;font-weight:700;cursor:pointer}
   .pp-report:hover{background:#7a4b52;color:#fff}
-  .bub{padding:9px 13px;border-radius:14px;font-size:.94rem;line-height:1.5;word-break:break-word;background:var(--other);color:var(--text)}
+  .bub{padding:12px 16px;border-radius:16px;font-size:1.02rem;line-height:1.55;word-break:break-word;background:var(--other);color:var(--text)}
   .row.me .bub{background:var(--me)}
   .ts{font-size:.64rem;color:var(--muted);align-self:flex-end;margin:0 4px}
   .sys{align-self:center;font-size:.76rem;color:var(--muted);padding:4px 0;text-align:center}
-  .typing{display:none;padding:2px 18px 6px;font-size:.74rem;color:var(--muted)}
+  .typing{display:none;align-items:center;gap:4px;padding:4px 18px 8px;font-size:.78rem;color:var(--muted)}
+  .tdot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block;animation:tb 1.2s infinite}
+  .tdot:nth-child(3){animation-delay:.15s}.tdot:nth-child(4){animation-delay:.3s}
+  @keyframes tb{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
   .cin{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:rgba(36,32,40,.7)}
   .cin input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);font-size:1rem}
   .cin input::placeholder{color:var(--muted)}
@@ -105,6 +109,8 @@
   .av-grid.show{display:flex}
   .av-opt{width:44px;height:44px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}
   .av-opt.on{border-color:var(--accent)}
+  .av-upload{display:inline-block;margin:6px auto 2px;font-size:.82rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:7px 18px;cursor:pointer}
+  .av-upload:hover{background:rgba(138,216,152,.12)}
   .mbio-wrap{display:flex;align-items:center;gap:8px;justify-content:center;margin:16px 0 20px;color:var(--muted)}
   .mbio-wrap input{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.9rem;width:230px;max-width:70vw;text-align:center}
   .msave{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);border:none;border-radius:10px;padding:10px 30px;font-weight:800;cursor:pointer}
@@ -158,7 +164,7 @@
       </span>
     </div>
     <div class="cmsgs" id="cmsgs"></div>
-    <div class="typing" id="typing">對方正在輸入…</div>
+    <div class="typing" id="typing"><span>對方正在輸入</span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
     <div class="cin">
       <input id="cinput" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
       <button id="cSend">↑</button>
@@ -180,6 +186,8 @@
     <div class="mbox">
       <span class="x" id="pClose">✕</span>
       <div class="big-av" id="bigAv">🙂<span class="pen">✏️</span></div>
+      <div class="av-upload" id="avUpload">📷 上傳照片</div>
+      <input type="file" id="avFile" accept="image/*" style="display:none">
       <div class="av-grid" id="avGrid"></div>
       <div class="mbio-wrap"><input id="mbio" maxlength="40" placeholder="簡單介紹一下你自己"><span>✏️</span></div>
       <button class="msave" id="pSave">儲存</button>
@@ -197,15 +205,20 @@
   var sel={mode:'random',gender:null,tags:[],code:'',verified:false};
 
   // ---- 個人資料 ----
-  function applyProfile(){ $('chipAv').textContent=prof.avatar; $('myAv').textContent=prof.avatar; $('bigAv').childNodes[0].nodeValue=prof.avatar; $('mbio').value=prof.bio;
-    var me=document.querySelectorAll('#cmsgs .row.me .av'); for(var i=0;i<me.length;i++) me[i].textContent=prof.avatar; } // 改頭貼時，已送出的訊息頭貼也一起更新
-  function renderAvGrid(){ var g=$('avGrid'); g.innerHTML=''; AVATARS.forEach(function(a){ var d=document.createElement('div'); d.className='av-opt'+(a===prof.avatar?' on':''); d.textContent=a; d.onclick=function(){ prof.avatar=a; $('bigAv').childNodes[0].nodeValue=a; g.querySelectorAll('.av-opt').forEach(function(x){x.classList.remove('on')}); d.classList.add('on'); }; g.appendChild(d); }); }
+  function avHtml(av){ return (av && av.indexOf('data:')===0) ? '<img src="'+av+'" alt="">' : (av||'😀'); }
+  function renderBigAv(av){ $('bigAv').innerHTML=avHtml(av)+'<span class="pen">✏️</span>'; }
+  function applyProfile(){ $('chipAv').innerHTML=avHtml(prof.avatar); $('myAv').innerHTML=avHtml(prof.avatar); renderBigAv(prof.avatar); $('mbio').value=prof.bio;
+    var me=document.querySelectorAll('#cmsgs .row.me .av'); for(var i=0;i<me.length;i++) me[i].innerHTML=avHtml(prof.avatar); } // 改頭貼時，已送出的訊息頭貼也一起更新
+  function renderAvGrid(){ var g=$('avGrid'); g.innerHTML=''; AVATARS.forEach(function(a){ var d=document.createElement('div'); d.className='av-opt'+(a===prof.avatar?' on':''); d.textContent=a; d.onclick=function(){ prof.avatar=a; renderBigAv(a); g.querySelectorAll('.av-opt').forEach(function(x){x.classList.remove('on')}); d.classList.add('on'); }; g.appendChild(d); }); }
+  // 上傳照片當頭貼：canvas 壓到 96px 方形 → base64(不存後端、最低成本)
+  $('avUpload').onclick=function(){ $('avFile').click(); };
+  $('avFile').onchange=function(){ var f=$('avFile').files[0]; if(!f)return; if(f.size>8*1024*1024){ alert('圖片太大，請選 8MB 以下'); return; } var img=new Image(); var rd=new FileReader(); rd.onload=function(){ img.onload=function(){ var s=96, cv=document.createElement('canvas'); cv.width=s; cv.height=s; var ctx=cv.getContext('2d'); var m=Math.min(img.width,img.height), sx=(img.width-m)/2, sy=(img.height-m)/2; ctx.drawImage(img,sx,sy,m,m,0,0,s,s); var b64=cv.toDataURL('image/jpeg',0.72); prof.avatar=b64; renderBigAv(b64); $('avFile').value=''; }; img.src=rd.result; }; rd.readAsDataURL(f); };
   function openProfile(){ renderAvGrid(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
   function closeProfile(){ $('profileModal').classList.remove('show'); }
   function saveProfile(){ prof.bio=$('mbio').value.trim(); try{localStorage.setItem('hihi_profile',JSON.stringify(prof))}catch(e){} applyProfile(); closeProfile(); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'profile',avatar:prof.avatar,bio:prof.bio})); }
   $('meChip').onclick=openProfile; $('myAv').onclick=openProfile;
   // 對方頭貼 → 檢視對方資料 + 檢舉
-  function openPartnerView(){ $('ppAv').textContent=partnerProf.avatar||'😀'; $('ppBio').textContent=partnerProf.bio||'（對方沒有留下自介）'; $('partnerModal').classList.add('show'); }
+  function openPartnerView(){ $('ppAv').innerHTML=avHtml(partnerProf.avatar||'😀'); $('ppBio').textContent=partnerProf.bio||'（對方沒有留下自介）'; $('partnerModal').classList.add('show'); }
   $('ppClose').onclick=function(){ $('partnerModal').classList.remove('show'); };
   $('partnerModal').onclick=function(e){ if(e.target===$('partnerModal')) $('partnerModal').classList.remove('show'); };
   $('ppReport').onclick=function(){ if(!confirm('確定檢舉對方？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); $('partnerModal').classList.remove('show'); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
@@ -229,7 +242,7 @@
   function renderTopics(){ var el=$('topics'); el.innerHTML=''; TOPICS.forEach(function(t){ var d=document.createElement('div'); d.className='topic'; d.textContent=t; d.onclick=function(){ var i=sel.tags.indexOf(t); if(i>=0){sel.tags.splice(i,1);d.classList.remove('on')} else {sel.tags.push(t);d.classList.add('on')} }; el.appendChild(d); }); }
   function refresh(){ $('startBtn').disabled=!(sel.verified && (sel.mode!=='opposite'||sel.gender)); }
   function setOnline(d){ if(d&&typeof d.online==='number') $('online').textContent='目前 '+d.online+' 人在線'+(d.waiting?' · '+d.waiting+' 人等待中':''); }
-  function showTyping(){ $('typing').style.display='block'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
+  function showTyping(){ $('typing').style.display='flex'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
   function hideTyping(){ $('typing').style.display='none'; }
   function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
   function goWait(title,sub){ $('waitTitle').textContent=title||'配對中…'; $('waitSub').textContent=sub||'正在幫你找一個聊天對象'; show('wait'); }
@@ -248,7 +261,7 @@
       else if(d.type==='msg'){ hideTyping(); addMsg(d,!!d.me); }
       else if(d.type==='typing'){ showTyping(); }
       else if(d.type==='sys'){ addSys(d.msg); }
-      else if(d.type==='partner_profile'){ partnerAv=d.avatar||partnerAv; partnerProf.avatar=partnerAv; if(d.bio!==undefined)partnerProf.bio=d.bio; var ov=document.querySelectorAll('#cmsgs .row.other .av'); for(var i=0;i<ov.length;i++) ov[i].textContent=partnerAv; }
+      else if(d.type==='partner_profile'){ partnerAv=d.avatar||partnerAv; partnerProf.avatar=partnerAv; if(d.bio!==undefined)partnerProf.bio=d.bio; var ov=document.querySelectorAll('#cmsgs .row.other .av'); for(var i=0;i<ov.length;i++) ov[i].innerHTML=avHtml(partnerAv); }
       else if(d.type==='partner_left'){ addLeftPrompt(); }
       else if(d.type==='left'){ show('gate'); }
       else if(d.type==='need_verify'){ show('gate'); alert('請先勾選「我不是機器人」再開始。'); }
@@ -265,8 +278,8 @@
     else sendStart('', true); };
   $('cancelBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); show('gate'); };
 
-  function startChat(p){ hideTyping(); partnerProf=p||{}; $('cmsgs').innerHTML=''; partnerAv=p.avatar||'😀'; var bits=[]; if(p.gender)bits.push(p.gender==='male'?'男':'女'); if(p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent=partnerAv+' 已配對'+(bits.length?' · '+bits.join(' '):''); show('chat'); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
-  function addMsg(m,me){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+(me?prof.avatar:partnerAv)+'</div><div class="bub">'+m.text+'</div><div class="ts">'+fmt(m.ts)+'</div>'; row.querySelector('.av').onclick=(me?openProfile:openPartnerView); el.appendChild(row); el.scrollTop=el.scrollHeight; }
+  function startChat(p){ hideTyping(); partnerProf=p||{}; $('cmsgs').innerHTML=''; partnerAv=p.avatar||'😀'; var bits=[]; if(p.gender)bits.push(p.gender==='male'?'男':'女'); if(p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); show('chat'); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
+  function addMsg(m,me){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div><div class="bub">'+m.text+'</div><div class="ts">'+fmt(m.ts)+'</div>'; row.querySelector('.av').onclick=(me?openProfile:openPartnerView); el.appendChild(row); el.scrollTop=el.scrollHeight; }
   function addSys(t){ var el=$('cmsgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
   function addLeftPrompt(){ hideTyping(); var el=$('cmsgs'); var w=document.createElement('div'); w.className='leave-prompt';
     w.innerHTML='<button class="rematch-btn">對方已離開聊天，點我重新配對</button><div class="report-hint">有遇到任何問題嗎？你可以進行檢舉</div>';

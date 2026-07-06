@@ -31,6 +31,16 @@ const blockedUntil = new Map();         // ip -> until(ts)
 function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch (e) {} }
 function clean(s, max) { return String(s || '').trim().replace(/[<>&"]/g, '').slice(0, max); }
 function nickOf(n) { const s = clean(n, 16); return s || ('訪客' + Math.floor(1000 + Math.random() * 9000)); }
+// 頭像：emoji(短) 或 上傳的 base64 圖(data:image，限大小+格式，防注入)
+function sanitizeAvatar(a) {
+  a = String(a || '').trim();
+  if (a.indexOf('data:') === 0) {   // 任何 data: 開頭 → 必須是合法 image base64，否則退回 emoji
+    if (a.indexOf('data:image/') !== 0 || a.length > 60000) return '😀';
+    if (!/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(a)) return '😀';
+    return a;
+  }
+  return clean(a, 12) || '😀';
+}
 function isBlocked(ip) { const u = blockedUntil.get(ip); if (!u) return false; if (Date.now() > u) { blockedUntil.delete(ip); return false; } return true; }
 function partnerInfo(x) { return { nick: x.nick, gender: x.gender || null, tags: x.tags || [], bio: x.bio || '', avatar: x.avatar || '😀' }; }
 
@@ -111,7 +121,7 @@ function attach(wss) {
         c.tags = Array.isArray(m.tags) ? m.tags.filter((t) => TOPICS.includes(t)).slice(0, 5) : [];
         c.code = clean(m.code, 20);
         c.bio = (function () { const b = clean(m.bio, 40); const chk = checkMessage(b || '　'); return chk.ok ? b : ''; })(); // 自介也過濾
-        c.avatar = clean(m.avatar, 12) || '😀'; // 頭像(clean 去掉 <>&" 防注入)
+        c.avatar = sanitizeAvatar(m.avatar); // 頭像：emoji 或上傳 base64 圖
         if (c.state === 'paired') unpair(c, 'restart');
         requeueOrMatch(c);
         return;
@@ -131,7 +141,7 @@ function attach(wss) {
       if (m.type === 'typing') { if (c.partner) send(c.partner.ws, { type: 'typing' }); return; }
 
       if (m.type === 'profile') {   // 中途改頭貼/自介 → 更新自己 + 即時通知對方
-        c.avatar = clean(m.avatar, 12) || c.avatar;
+        c.avatar = sanitizeAvatar(m.avatar);
         const b = clean(m.bio, 40); const chk = checkMessage(b || '　'); if (chk.ok) c.bio = b;
         if (c.partner) send(c.partner.ws, { type: 'partner_profile', avatar: c.avatar, bio: c.bio });
         return;
