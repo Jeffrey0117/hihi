@@ -197,7 +197,8 @@
   var sel={mode:'random',gender:null,tags:[],code:'',verified:false};
 
   // ---- 個人資料 ----
-  function applyProfile(){ $('chipAv').textContent=prof.avatar; $('myAv').textContent=prof.avatar; $('bigAv').childNodes[0].nodeValue=prof.avatar; $('mbio').value=prof.bio; }
+  function applyProfile(){ $('chipAv').textContent=prof.avatar; $('myAv').textContent=prof.avatar; $('bigAv').childNodes[0].nodeValue=prof.avatar; $('mbio').value=prof.bio;
+    var me=document.querySelectorAll('#cmsgs .row.me .av'); for(var i=0;i<me.length;i++) me[i].textContent=prof.avatar; } // 改頭貼時，已送出的訊息頭貼也一起更新
   function renderAvGrid(){ var g=$('avGrid'); g.innerHTML=''; AVATARS.forEach(function(a){ var d=document.createElement('div'); d.className='av-opt'+(a===prof.avatar?' on':''); d.textContent=a; d.onclick=function(){ prof.avatar=a; $('bigAv').childNodes[0].nodeValue=a; g.querySelectorAll('.av-opt').forEach(function(x){x.classList.remove('on')}); d.classList.add('on'); }; g.appendChild(d); }); }
   function openProfile(){ renderAvGrid(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
   function closeProfile(){ $('profileModal').classList.remove('show'); }
@@ -233,7 +234,7 @@
   function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
   function goWait(title,sub){ $('waitTitle').textContent=title||'配對中…'; $('waitSub').textContent=sub||'正在幫你找一個聊天對象'; show('wait'); }
   // 聊天/配對中誤觸重整/關閉 → 提醒(避免不小心斷掉配對)
-  window.addEventListener('beforeunload',function(e){ if($('chat').classList.contains('show')||$('wait').classList.contains('show')){ e.preventDefault(); e.returnValue=''; } });
+  window.addEventListener('beforeunload',function(e){ if($('chat').classList.contains('show')||$('wait').classList.contains('show')){ e.preventDefault(); e.returnValue='離開會結束目前的聊天'; return '離開會結束目前的聊天'; } });
 
   function connect(){ var proto=location.protocol==='https:'?'wss':'ws'; ws=new WebSocket(proto+'://'+location.host+'/ws');
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
