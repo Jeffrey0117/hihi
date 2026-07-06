@@ -20,7 +20,7 @@ function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(o
 function clean(s, max) { return String(s || '').trim().replace(/[<>&"]/g, '').slice(0, max); }
 function nickOf(n) { const s = clean(n, 16); return s || ('訪客' + Math.floor(1000 + Math.random() * 9000)); }
 function isBlocked(ip) { const u = blockedUntil.get(ip); if (!u) return false; if (Date.now() > u) { blockedUntil.delete(ip); return false; } return true; }
-function partnerInfo(x) { return { nick: x.nick, gender: x.gender || null, tags: x.tags || [], bio: x.bio || '' }; }
+function partnerInfo(x) { return { nick: x.nick, gender: x.gender || null, tags: x.tags || [], bio: x.bio || '', avatar: x.avatar || '😀' }; }
 
 function statsObj() { return { online: clients.size, waiting: waiting.length }; }
 let statsPending = null;
@@ -71,7 +71,7 @@ function requeueOrMatch(c) {
 function attach(wss) {
   wss.on('connection', (ws, req) => {
     const c = {
-      ws, id: seq++, nick: null, gender: null, mode: 'random', tags: [], code: '', bio: '',
+      ws, id: seq++, nick: null, gender: null, mode: 'random', tags: [], code: '', bio: '', avatar: '😀',
       partner: null, state: 'idle', avoid: new Set(),
       limiter: createLimiter({ limit: 8, windowMs: 10000 }),
       ip: (req.headers['cf-connecting-ip'] || (req.socket && req.socket.remoteAddress) || 'unknown'),
@@ -92,6 +92,7 @@ function attach(wss) {
         c.tags = Array.isArray(m.tags) ? m.tags.filter((t) => TOPICS.includes(t)).slice(0, 5) : [];
         c.code = clean(m.code, 20);
         c.bio = (function () { const b = clean(m.bio, 40); const chk = checkMessage(b || '　'); return chk.ok ? b : ''; })(); // 自介也過濾
+        c.avatar = clean(m.avatar, 12) || '😀'; // 頭像(clean 去掉 <>&" 防注入)
         if (c.state === 'paired') unpair(c, 'restart');
         requeueOrMatch(c);
         return;
