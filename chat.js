@@ -130,6 +130,13 @@ function attach(wss) {
 
       if (m.type === 'typing') { if (c.partner) send(c.partner.ws, { type: 'typing' }); return; }
 
+      if (m.type === 'profile') {   // 中途改頭貼/自介 → 更新自己 + 即時通知對方
+        c.avatar = clean(m.avatar, 12) || c.avatar;
+        const b = clean(m.bio, 40); const chk = checkMessage(b || '　'); if (chk.ok) c.bio = b;
+        if (c.partner) send(c.partner.ws, { type: 'partner_profile', avatar: c.avatar, bio: c.bio });
+        return;
+      }
+
       if (m.type === 'report') {
         const p = c.partner;
         if (p) {

@@ -202,7 +202,7 @@
   function renderAvGrid(){ var g=$('avGrid'); g.innerHTML=''; AVATARS.forEach(function(a){ var d=document.createElement('div'); d.className='av-opt'+(a===prof.avatar?' on':''); d.textContent=a; d.onclick=function(){ prof.avatar=a; $('bigAv').childNodes[0].nodeValue=a; g.querySelectorAll('.av-opt').forEach(function(x){x.classList.remove('on')}); d.classList.add('on'); }; g.appendChild(d); }); }
   function openProfile(){ renderAvGrid(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
   function closeProfile(){ $('profileModal').classList.remove('show'); }
-  function saveProfile(){ prof.bio=$('mbio').value.trim(); try{localStorage.setItem('hihi_profile',JSON.stringify(prof))}catch(e){} applyProfile(); closeProfile(); }
+  function saveProfile(){ prof.bio=$('mbio').value.trim(); try{localStorage.setItem('hihi_profile',JSON.stringify(prof))}catch(e){} applyProfile(); closeProfile(); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'profile',avatar:prof.avatar,bio:prof.bio})); }
   $('meChip').onclick=openProfile; $('myAv').onclick=openProfile;
   // 對方頭貼 → 檢視對方資料 + 檢舉
   function openPartnerView(){ $('ppAv').textContent=partnerProf.avatar||'😀'; $('ppBio').textContent=partnerProf.bio||'（對方沒有留下自介）'; $('partnerModal').classList.add('show'); }
@@ -248,6 +248,7 @@
       else if(d.type==='msg'){ hideTyping(); addMsg(d,!!d.me); }
       else if(d.type==='typing'){ showTyping(); }
       else if(d.type==='sys'){ addSys(d.msg); }
+      else if(d.type==='partner_profile'){ partnerAv=d.avatar||partnerAv; partnerProf.avatar=partnerAv; if(d.bio!==undefined)partnerProf.bio=d.bio; var ov=document.querySelectorAll('#cmsgs .row.other .av'); for(var i=0;i<ov.length;i++) ov[i].textContent=partnerAv; }
       else if(d.type==='partner_left'){ addLeftPrompt(); }
       else if(d.type==='left'){ show('gate'); }
       else if(d.type==='need_verify'){ show('gate'); alert('請先勾選「我不是機器人」再開始。'); }
