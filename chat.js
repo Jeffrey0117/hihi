@@ -27,6 +27,8 @@ const clients = new Set();
 const waiting = [];
 const reports = new Map();              // ip -> { count, ts }
 const blockedUntil = new Map();         // ip -> until(ts)
+const bySid = new Map();                // sid -> client（重整後斷線重連用）
+const RESUME_GRACE_MS = 15000;          // 斷線後保留配對多久，等重連
 
 function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch (e) {} }
 function clean(s, max) { return String(s || '').trim().replace(/[<>&"]/g, '').slice(0, max); }
@@ -122,8 +124,28 @@ function attach(wss) {
         c.code = clean(m.code, 20);
         c.bio = (function () { const b = clean(m.bio, 40); const chk = checkMessage(b || '　'); return chk.ok ? b : ''; })(); // 自介也過濾
         c.avatar = sanitizeAvatar(m.avatar); // 頭像：emoji 或上傳 base64 圖
+        if (m.sid) { c.sid = clean(m.sid, 40); bySid.set(c.sid, c); }
         if (c.state === 'paired') unpair(c, 'restart');
         requeueOrMatch(c);
+        return;
+      }
+
+      if (m.type === 'resume') {   // 重整後回來：把還在寬限期的舊配對搬到這條新連線
+        const sid = clean(m.sid, 40);
+        const oc = sid ? bySid.get(sid) : null;
+        if (oc && oc !== c && oc.disconnected && oc.partner) {
+          clearTimeout(oc.graceTimer);
+          const partner = oc.partner;
+          c.partner = partner; partner.partner = c;
+          c.state = 'paired'; c.verified = true;
+          c.avatar = oc.avatar; c.bio = oc.bio; c.gender = oc.gender; c.tags = oc.tags; c.nick = oc.nick; c.mode = oc.mode; c.avoid = oc.avoid; c.lastPartnerIp = oc.lastPartnerIp;
+          c.sid = sid; bySid.set(sid, c);
+          oc.partner = null; clients.delete(oc);
+          send(ws, { type: 'resumed', partner: partnerInfo(partner) });
+          send(partner.ws, { type: 'partner_back' });
+        } else {
+          send(ws, { type: 'resume_failed' });
+        }
         return;
       }
 
@@ -178,7 +200,19 @@ function attach(wss) {
       if (m.type === 'leave') { unpair(c, 'leave'); dequeue(c); c.state = 'idle'; send(ws, { type: 'left' }); broadcastStats(); return; }
     });
 
-    ws.on('close', () => { dequeue(c); unpair(c, 'disconnect'); clients.delete(c); broadcastStats(); });
+    ws.on('close', () => {
+      dequeue(c);
+      if (c.state === 'paired' && c.partner) {
+        // 可能是重整 → 保留配對，給對方一個「等待重連」狀態，寬限期內可 resume
+        c.disconnected = true;
+        send(c.partner.ws, { type: 'partner_away' });
+        c.graceTimer = setTimeout(() => {
+          if (c.disconnected) { unpair(c, 'disconnect'); if (c.sid) bySid.delete(c.sid); clients.delete(c); broadcastStats(); }
+        }, RESUME_GRACE_MS);
+      } else {
+        unpair(c, 'disconnect'); if (c.sid) bySid.delete(c.sid); clients.delete(c); broadcastStats();
+      }
+    });
     ws.on('error', () => {});
   });
 }
