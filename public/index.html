@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>嗨嗨 - 匿名聊天</title>
 <meta name="description" content="嗨嗨，找個人陪你聊聊。匿名、即時、閱後即焚。">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -63,7 +63,9 @@
   .ghost{background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 20px;cursor:pointer;font-size:.86rem}
 
   /* chat */
+  body.in-chat{overflow:hidden}
   #chat{display:none;flex-direction:column;height:100vh;height:100dvh;max-width:860px;width:100%;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+  .cmsgs{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   #chat.show{display:flex}
   .leave-prompt{align-self:center;text-align:center;padding:18px 0 6px}
   .rematch-btn{background:var(--panel);border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:11px 26px;font-size:.92rem;font-weight:700;cursor:pointer}
@@ -248,7 +250,10 @@
   function refresh(){ $('startBtn').disabled=!(sel.verified && (sel.mode!=='opposite'||sel.gender)); }
   function showTyping(){ $('typing').style.display='flex'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
   function hideTyping(){ $('typing').style.display='none'; }
-  function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
+  function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); document.body.classList.toggle('in-chat', id==='chat'); fitChat(); }
+  // 手機鍵盤：把聊天高度貼齊可見區(鍵盤上方)，訊息+輸入框都看得到，並捲到最新
+  function fitChat(){ var chat=$('chat'); if(!chat.classList.contains('show')){ chat.style.height=''; return; } var vv=window.visualViewport; if(vv){ chat.style.height=vv.height+'px'; window.scrollTo(0,0); } var el=$('cmsgs'); if(el) el.scrollTop=el.scrollHeight; }
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize',fitChat); window.visualViewport.addEventListener('scroll',fitChat); }
   function goWait(title,sub){ $('waitTitle').textContent=title||'配對中…'; $('waitSub').textContent=sub||'正在幫你找一個聊天對象'; show('wait'); }
   // 聊天/配對中誤觸重整/關閉 → 提醒(避免不小心斷掉配對)
   // 重整照常，靠斷線重連回到原本的聊天（見 ws.onopen 的 resume）。
@@ -300,6 +305,7 @@
   $('cSend').onclick=sendMsg;
   $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
   $('cinput').addEventListener('input',function(){ var now=Date.now(); if(now-lastTyping>1500 && ws&&ws.readyState===1){ lastTyping=now; ws.send(JSON.stringify({type:'typing'})); } });
+  $('cinput').addEventListener('focus',function(){ setTimeout(fitChat,150); setTimeout(fitChat,350); setTimeout(fitChat,600); }); // 鍵盤彈出動畫期間多校正幾次
   $('reportBtn').onclick=function(){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('leaveBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
