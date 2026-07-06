@@ -6,12 +6,12 @@
 <title>hihi</title>
 <style>
   :root{
-    --bg1:#181c19;--bg2:#1d221e;--panel:#232a25;--panel2:#2c332d;--border:#343d37;
-    --text:#eaefe9;--muted:#93a096;--accent:#86d494;--accent2:#5cbf78;--me:#2e4536;--other:#2c332d;--onacc:#0f2417;
+    --bg1:#2a382d;--bg2:#25332a;--panel:#324034;--panel2:#3c4b3f;--border:#465849;
+    --text:#eaf1e9;--muted:#9cab9f;--accent:#8ad898;--accent2:#5fc37c;--me:#345a41;--other:#3c4b3f;--onacc:#0f2417;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{background-color:#181c19;background-image:radial-gradient(1100px 560px at 50% -8%,rgba(134,212,148,.11),transparent 60%),radial-gradient(760px 480px at 88% 6%,rgba(92,191,120,.06),transparent 55%),radial-gradient(680px 680px at 10% 104%,rgba(134,212,148,.05),transparent 60%),linear-gradient(160deg,#1a1f1b,#161a17 55%,#12150f);background-attachment:fixed;color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;min-height:100vh;min-height:100dvh}
+  body{background-color:#2a382d;background-image:radial-gradient(1100px 560px at 50% -6%,rgba(138,216,152,.16),transparent 62%),radial-gradient(760px 480px at 88% 8%,rgba(95,195,124,.09),transparent 55%),radial-gradient(680px 680px at 8% 104%,rgba(138,216,152,.08),transparent 60%),linear-gradient(160deg,#2d3c30,#28352b 55%,#22301f);background-attachment:fixed;color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;min-height:100vh;min-height:100dvh}
   body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.045;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
   .logo{font-family:'Brush Script MT','Segoe Script','Snell Roundhand',cursive;font-weight:400;color:#f0ecf4;letter-spacing:1px}
   a{color:var(--muted);text-decoration:none}
@@ -141,8 +141,8 @@
   <!-- 配對中 -->
   <div id="wait">
     <div class="spinner"></div>
-    <div class="t">配對中…</div>
-    <div class="s">正在幫你找一個聊天對象</div>
+    <div class="t" id="waitTitle">配對中…</div>
+    <div class="s" id="waitSub">正在幫你找一個聊天對象</div>
     <button class="ghost" id="cancelBtn">取消</button>
   </div>
 
@@ -207,7 +207,7 @@
   function openPartnerView(){ $('ppAv').textContent=partnerProf.avatar||'😀'; $('ppBio').textContent=partnerProf.bio||'（對方沒有留下自介）'; $('partnerModal').classList.add('show'); }
   $('ppClose').onclick=function(){ $('partnerModal').classList.remove('show'); };
   $('partnerModal').onclick=function(e){ if(e.target===$('partnerModal')) $('partnerModal').classList.remove('show'); };
-  $('ppReport').onclick=function(){ if(!confirm('確定檢舉對方？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); $('partnerModal').classList.remove('show'); show('wait'); };
+  $('ppReport').onclick=function(){ if(!confirm('確定檢舉對方？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); $('partnerModal').classList.remove('show'); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('bigAv').onclick=function(){ $('avGrid').classList.toggle('show'); };
   $('pClose').onclick=closeProfile; $('pSave').onclick=saveProfile;
   $('profileModal').onclick=function(e){ if(e.target===$('profileModal')) closeProfile(); };
@@ -231,6 +231,9 @@
   function showTyping(){ $('typing').style.display='block'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
   function hideTyping(){ $('typing').style.display='none'; }
   function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
+  function goWait(title,sub){ $('waitTitle').textContent=title||'配對中…'; $('waitSub').textContent=sub||'正在幫你找一個聊天對象'; show('wait'); }
+  // 聊天/配對中誤觸重整/關閉 → 提醒(避免不小心斷掉配對)
+  window.addEventListener('beforeunload',function(e){ if($('chat').classList.contains('show')||$('wait').classList.contains('show')){ e.preventDefault(); e.returnValue=''; } });
 
   function connect(){ var proto=location.protocol==='https:'?'wss':'ws'; ws=new WebSocket(proto+'://'+location.host+'/ws');
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
@@ -263,16 +266,16 @@
   function addLeftPrompt(){ hideTyping(); var el=$('cmsgs'); var w=document.createElement('div'); w.className='leave-prompt';
     w.innerHTML='<button class="rematch-btn">對方已離開聊天，點我重新配對</button><div class="report-hint">有遇到任何問題嗎？你可以進行檢舉</div>';
     el.appendChild(w); el.scrollTop=el.scrollHeight;
-    w.querySelector('.rematch-btn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); show('wait'); };
-    w.querySelector('.report-hint').onclick=function(){ if(!confirm('檢舉剛才的對象並重新配對？')) return; if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'report_last'})); ws.send(JSON.stringify({type:'next'})); } show('wait'); };
+    w.querySelector('.rematch-btn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
+    w.querySelector('.report-hint').onclick=function(){ if(!confirm('檢舉剛才的對象並重新配對？')) return; if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'report_last'})); ws.send(JSON.stringify({type:'next'})); } goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   }
   function fmt(ts){ try{var d=new Date(ts);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}catch(e){return''} }
   function sendMsg(){ var v=$('cinput').value.trim(); if(!v||!ws||ws.readyState!==1)return; ws.send(JSON.stringify({type:'msg',text:v})); $('cinput').value=''; }
   $('cSend').onclick=sendMsg;
   $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
   $('cinput').addEventListener('input',function(){ var now=Date.now(); if(now-lastTyping>1500 && ws&&ws.readyState===1){ lastTyping=now; ws.send(JSON.stringify({type:'typing'})); } });
-  $('reportBtn').onclick=function(){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); show('wait'); };
-  $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); show('wait'); };
+  $('reportBtn').onclick=function(){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
+  $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('leaveBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); show('gate'); };
 })();
 </script>
