@@ -107,10 +107,10 @@
   .mbox .x{position:absolute;top:14px;right:16px;color:var(--muted);cursor:pointer;font-size:20px;line-height:1}
   .big-av{width:120px;height:120px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);margin:6px auto 4px;display:flex;align-items:center;justify-content:center;font-size:64px;cursor:pointer;position:relative}
   .big-av .pen{position:absolute;right:6px;bottom:6px;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--onacc);display:flex;align-items:center;justify-content:center;font-size:14px}
-  .av-grid{display:none;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0 4px}
-  .av-grid.show{display:flex}
-  .av-opt{width:44px;height:44px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer}
+  .av-choices{display:flex;gap:14px;justify-content:center;margin:16px 0 8px}
+  .av-opt{width:62px;height:62px;border-radius:50%;background:var(--panel2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.82rem;color:var(--muted);cursor:pointer;overflow:hidden}
   .av-opt.on{border-color:var(--accent)}
+  .av-opt img{width:100%;height:100%;object-fit:cover}
   .av-upload{display:inline-block;margin:6px auto 2px;font-size:.82rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:7px 18px;cursor:pointer}
   .av-upload:hover{background:rgba(138,216,152,.12)}
   .mbio-wrap{display:flex;align-items:center;gap:8px;justify-content:center;margin:16px 0 20px;color:var(--muted)}
@@ -125,7 +125,6 @@
     <div class="me-chip" id="meChip"><span class="av" id="chipAv">🙂</span><span class="t">點我編輯個人資料</span></div>
     <div class="logo">hihi</div>
     <div class="tag">找個人陪你聊聊</div>
-    <div class="online" id="online"></div>
 
     <div class="tabs">
       <div class="tab on" data-mode="random">隨機</div>
@@ -187,10 +186,14 @@
   <div class="modal" id="profileModal">
     <div class="mbox">
       <span class="x" id="pClose">✕</span>
-      <div class="big-av" id="bigAv">🙂<span class="pen">✏️</span></div>
-      <div class="av-upload" id="avUpload">📷 上傳照片</div>
+      <div class="big-av" id="bigAv"><span class="pen">✏️</span></div>
+      <div class="av-choices">
+        <div class="av-opt" id="avMale" data-av="male" title="男生"></div>
+        <div class="av-opt" id="avFemale" data-av="female" title="女生"></div>
+        <div class="av-opt" id="avNone" data-av="">不用</div>
+      </div>
+      <div class="av-upload" id="avUpload">📷 上傳自己的照片</div>
       <input type="file" id="avFile" accept="image/*" style="display:none">
-      <div class="av-grid" id="avGrid"></div>
       <div class="mbio-wrap"><input id="mbio" maxlength="40" placeholder="簡單介紹一下你自己"><span>✏️</span></div>
       <button class="msave" id="pSave">儲存</button>
     </div>
@@ -200,24 +203,28 @@
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
-  var AVATARS=['🙂','😀','😎','🥰','😴','🤗','😜','🐱','🐶','🦊','🐰','🐼','🦄','🌸','🌟','🎧'];
-  var ws, TOPICS=[], typingTimer=null, lastTyping=0, partnerAv='😀', partnerProf={};
+  var AV_MALE="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%233b5566'/%3E%3Ccircle cx='32' cy='27' r='11' fill='%23f0d9bf'/%3E%3Cpath d='M13 55c1-11 9-16 19-16s18 5 19 16z' fill='%23f0d9bf'/%3E%3Cpath d='M20 24c0-9 6-14 12-14s12 5 12 14c-3-5-7-7-12-7s-9 2-12 7z' fill='%232b3a44'/%3E%3C/svg%3E";
+  var AV_FEMALE="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23a05a6b'/%3E%3Cpath d='M17 30c0-10 6-18 15-18s15 8 15 18v12h-5V27c-2-5-5-7-10-7s-8 2-10 7v15h-5z' fill='%234a2e38'/%3E%3Ccircle cx='32' cy='28' r='10.5' fill='%23f6ddc6'/%3E%3Cpath d='M15 55c1-10 8-15 17-15s16 5 17 15z' fill='%23f6ddc6'/%3E%3C/svg%3E";
+  var AV_EMPTY="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%233c433d'/%3E%3Ccircle cx='32' cy='26' r='10' fill='%237d8a80'/%3E%3Cpath d='M15 54c1-10 8-15 17-15s16 5 17 15z' fill='%237d8a80'/%3E%3C/svg%3E";
+  var ws, TOPICS=[], typingTimer=null, lastTyping=0, partnerAv='', partnerProf={};
   var sid; try{ sid=sessionStorage.getItem('hihi_sid'); if(!sid){ sid='sid_'+Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem('hihi_sid',sid); } }catch(e){ sid='sid_'+Math.random().toString(36).slice(2); }
   function setInChat(v){ try{ if(v){sessionStorage.setItem('hihi_inchat','1');} else {sessionStorage.removeItem('hihi_inchat'); clearMsgs();} }catch(e){} }
-  var prof={avatar:'🙂',bio:''};
-  try{ var sp=JSON.parse(localStorage.getItem('hihi_profile')||'{}'); if(sp.avatar)prof.avatar=sp.avatar; if(sp.bio)prof.bio=sp.bio; }catch(e){}
+  var prof={avatar:'',bio:''};
+  try{ var sp=JSON.parse(localStorage.getItem('hihi_profile')||'{}'); if(sp.avatar && (sp.avatar==='male'||sp.avatar==='female'||sp.avatar.indexOf('data:')===0)) prof.avatar=sp.avatar; if(sp.bio)prof.bio=sp.bio; }catch(e){}
   var sel={mode:'random',gender:null,tags:[],code:'',verified:false};
 
   // ---- 個人資料 ----
-  function avHtml(av){ return (av && av.indexOf('data:')===0) ? '<img src="'+av+'" alt="">' : (av||'😀'); }
+  function avHtml(av){ var s= av==='male'?AV_MALE : av==='female'?AV_FEMALE : (av&&av.indexOf('data:')===0)?av : AV_EMPTY; return '<img src="'+s+'" alt="">'; }
   function renderBigAv(av){ $('bigAv').innerHTML=avHtml(av)+'<span class="pen">✏️</span>'; }
   function applyProfile(){ $('chipAv').innerHTML=avHtml(prof.avatar); renderBigAv(prof.avatar); $('mbio').value=prof.bio;
     var me=document.querySelectorAll('#cmsgs .row.me .av'); for(var i=0;i<me.length;i++) me[i].innerHTML=avHtml(prof.avatar); } // 改頭貼時，已送出的訊息頭貼也一起更新
-  function renderAvGrid(){ var g=$('avGrid'); g.innerHTML=''; AVATARS.forEach(function(a){ var d=document.createElement('div'); d.className='av-opt'+(a===prof.avatar?' on':''); d.textContent=a; d.onclick=function(){ prof.avatar=a; renderBigAv(a); g.querySelectorAll('.av-opt').forEach(function(x){x.classList.remove('on')}); d.classList.add('on'); }; g.appendChild(d); }); }
+  function markAvSel(){ ['avMale','avFemale','avNone'].forEach(function(id){ $(id).classList.toggle('on', $(id).getAttribute('data-av')===prof.avatar); }); }
+  $('avMale').innerHTML='<img src="'+AV_MALE+'">'; $('avFemale').innerHTML='<img src="'+AV_FEMALE+'">';
+  ['avMale','avFemale','avNone'].forEach(function(id){ $(id).onclick=function(){ prof.avatar=$(id).getAttribute('data-av'); renderBigAv(prof.avatar); markAvSel(); }; });
   // 上傳照片當頭貼：canvas 壓到 96px 方形 → base64(不存後端、最低成本)
   $('avUpload').onclick=function(){ $('avFile').click(); };
-  $('avFile').onchange=function(){ var f=$('avFile').files[0]; if(!f)return; if(f.size>8*1024*1024){ alert('圖片太大，請選 8MB 以下'); return; } var img=new Image(); var rd=new FileReader(); rd.onload=function(){ img.onload=function(){ var s=96, cv=document.createElement('canvas'); cv.width=s; cv.height=s; var ctx=cv.getContext('2d'); var m=Math.min(img.width,img.height), sx=(img.width-m)/2, sy=(img.height-m)/2; ctx.drawImage(img,sx,sy,m,m,0,0,s,s); var b64=cv.toDataURL('image/jpeg',0.72); prof.avatar=b64; renderBigAv(b64); $('avFile').value=''; }; img.src=rd.result; }; rd.readAsDataURL(f); };
-  function openProfile(){ renderAvGrid(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
+  $('avFile').onchange=function(){ var f=$('avFile').files[0]; if(!f)return; if(f.size>8*1024*1024){ alert('圖片太大，請選 8MB 以下'); return; } var img=new Image(); var rd=new FileReader(); rd.onload=function(){ img.onload=function(){ var s=96, cv=document.createElement('canvas'); cv.width=s; cv.height=s; var ctx=cv.getContext('2d'); var m=Math.min(img.width,img.height), sx=(img.width-m)/2, sy=(img.height-m)/2; ctx.drawImage(img,sx,sy,m,m,0,0,s,s); var b64=cv.toDataURL('image/jpeg',0.72); prof.avatar=b64; renderBigAv(b64); markAvSel(); $('avFile').value=''; }; img.src=rd.result; }; rd.readAsDataURL(f); };
+  function openProfile(){ renderBigAv(prof.avatar); markAvSel(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
   function closeProfile(){ $('profileModal').classList.remove('show'); }
   function saveProfile(){ prof.bio=$('mbio').value.trim(); try{localStorage.setItem('hihi_profile',JSON.stringify(prof))}catch(e){} applyProfile(); closeProfile(); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'profile',avatar:prof.avatar,bio:prof.bio})); }
   $('meChip').onclick=openProfile;
@@ -226,7 +233,6 @@
   $('ppClose').onclick=function(){ $('partnerModal').classList.remove('show'); };
   $('partnerModal').onclick=function(e){ if(e.target===$('partnerModal')) $('partnerModal').classList.remove('show'); };
   $('ppReport').onclick=function(){ if(!confirm('確定檢舉對方？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); $('partnerModal').classList.remove('show'); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
-  $('bigAv').onclick=function(){ $('avGrid').classList.toggle('show'); };
   $('pClose').onclick=closeProfile; $('pSave').onclick=saveProfile;
   $('profileModal').onclick=function(e){ if(e.target===$('profileModal')) closeProfile(); };
   applyProfile();
@@ -245,7 +251,6 @@
   $('code').oninput=function(){ sel.code=$('code').value.trim(); };
   function renderTopics(){ var el=$('topics'); el.innerHTML=''; TOPICS.forEach(function(t){ var d=document.createElement('div'); d.className='topic'; d.textContent=t; d.onclick=function(){ var i=sel.tags.indexOf(t); if(i>=0){sel.tags.splice(i,1);d.classList.remove('on')} else {sel.tags.push(t);d.classList.add('on')} }; el.appendChild(d); }); }
   function refresh(){ $('startBtn').disabled=!(sel.verified && (sel.mode!=='opposite'||sel.gender)); }
-  function setOnline(d){ if(d&&typeof d.online==='number') $('online').textContent='目前 '+d.online+' 人在線'+(d.waiting?' · '+d.waiting+' 人等待中':''); }
   function showTyping(){ $('typing').style.display='flex'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
   function hideTyping(){ $('typing').style.display='none'; }
   function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display='flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
@@ -256,8 +261,8 @@
   function connect(){ var proto=location.protocol==='https:'?'wss':'ws'; ws=new WebSocket(proto+'://'+location.host+'/ws');
     ws.onopen=function(){ try{ if(sessionStorage.getItem('hihi_inchat')==='1') ws.send(JSON.stringify({type:'resume',sid:sid})); }catch(e){} };
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
-      if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); setOnline(d); }
-      else if(d.type==='stats'){ setOnline(d); }
+      if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); }
+      else if(d.type==='stats'){ /* 在線人數不顯示 */ }
       else if(d.type==='waiting'){ show('wait'); }
       else if(d.type==='matched'){ startChat(d.partner); }
       else if(d.type==='resumed'){ resumeChat(d.partner); }
