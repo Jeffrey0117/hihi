@@ -74,6 +74,7 @@ function findMatch(c) {
 function dequeue(c) { const i = waiting.indexOf(c); if (i >= 0) waiting.splice(i, 1); }
 
 function pair(a, b) {
+  clearTimeout(a.botMatchTimer); clearTimeout(b.botMatchTimer);
   a.partner = b; b.partner = a; a.state = 'paired'; b.state = 'paired';
   a.avoid.add(b.id); b.avoid.add(a.id);   // 聊過就先不重配（換下一個才有意義）
   send(a.ws, { type: 'matched', partner: partnerInfo(b) });
@@ -82,14 +83,99 @@ function pair(a, b) {
 function unpair(c, reason) {
   const p = c.partner;
   c.partner = null; c.state = 'idle';
-  if (p) { c.lastPartnerIp = p.ip; p.lastPartnerIp = c.ip; p.partner = null; p.state = 'idle'; send(p.ws, { type: 'partner_left', reason }); }
+  if (p) {
+    if (p.isBot) { c.lastPartnerIp = null; resetBot(p); }   // 對方是機器人 → 靜靜重置回收
+    else { c.lastPartnerIp = p.ip; p.lastPartnerIp = c.ip; p.partner = null; p.state = 'idle'; send(p.ws, { type: 'partner_left', reason }); }
+  }
 }
 function requeueOrMatch(c) {
   dequeue(c);
   const m = findMatch(c);
   if (m) pair(c, m);
-  else { c.state = 'waiting'; waiting.push(c); send(c.ws, { type: 'waiting' }); }
+  else { c.state = 'waiting'; waiting.push(c); send(c.ws, { type: 'waiting' }); if (!c.isBot) scheduleBotMatch(c); }
   broadcastStats();
+}
+
+// ===================== 機器人（製造活躍感 / 不讓人乾等）=====================
+// 固定 5 隻機器人，一律算在線；真人配不到真人時，隔幾秒配一隻機器人。
+// 機器人「通常等對方先講」，回覆很簡單：招呼 → 性別/地點 → 年齡 → 之後隨口閒聊，隨機變換。
+const BOT_COUNT = 5;
+const BOT_AVATARS = ['🙂', '😊', '🥰', '😀', '🌸', '😜', '🐰', '🌟', '😌', '🍀'];
+const BOT_GREET = ['hi', 'hi~', '嗨', '哈囉', 'hello', '嗨嗨', '你好'];
+const BOT_IDENT = ['女', '女生', '高雄', '台中', '女的', '北部', '台北', '台南'];
+const BOT_AGE = ['20', '24', '25', '21歲', '23', '19', '22歲', '20歲'];
+const BOT_FILLER = ['嗯嗯', '然後呢', '哈哈', '你呢', '還好欸', '在幹嘛', '你住哪', '有點無聊', '對啊', '你幾歲', '剛下班', '你呢？', '😆', '看心情', '躺著滑手機', '不會啊'];
+const BOTS = [];
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function idleBot() { return BOTS.find((b) => b.state === 'idle') || null; }
+function botSend(bot, data) {   // 機器人「收到」server 訊息 → 只對真人講話有反應
+  let d; try { d = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
+  if (d && d.type === 'msg' && !d.me) botReply(bot);
+}
+function initBots() {
+  for (let i = 0; i < BOT_COUNT; i++) {
+    const b = {
+      isBot: true, id: 900000 + i, nick: '訪客', gender: 'female', mode: 'random',
+      tags: [], code: '', bio: '', avatar: BOT_AVATARS[i % BOT_AVATARS.length],
+      partner: null, state: 'idle', avoid: new Set(), verified: true,
+      step: 0, ip: 'bot#' + i, silenceTimer: null, replyTimer: null, botMatchTimer: null,
+      ws: { readyState: 1, send: null },
+    };
+    b.ws.send = (data) => botSend(b, data);
+    BOTS.push(b);
+    clients.add(b);   // 算進在線人數
+  }
+}
+function botReply(bot) {   // 對方講話了 → 停頓一下（像在打字）再回一句
+  if (!bot.partner || bot.replyTimer) return;
+  clearTimeout(bot.silenceTimer); bot.silenceTimer = null;
+  const human = bot.partner;
+  send(human.ws, { type: 'typing' });
+  bot.replyTimer = setTimeout(() => {
+    bot.replyTimer = null;
+    if (bot.partner !== human) return;
+    let text;
+    if (bot.step === 0) text = pick(BOT_GREET);
+    else if (bot.step === 1) text = pick(BOT_IDENT);
+    else if (bot.step === 2) text = pick(BOT_AGE);
+    else text = pick(BOT_FILLER);
+    bot.step++;
+    send(human.ws, { type: 'msg', text, ts: Date.now() });
+  }, 1400 + Math.random() * 2400);
+}
+function botOnMatched(bot) {   // 通常等對方先講；太久沒人開口就主動破冰
+  bot.step = 0;
+  clearTimeout(bot.silenceTimer);
+  bot.silenceTimer = setTimeout(() => {
+    if (bot.partner && bot.step === 0) { send(bot.partner.ws, { type: 'msg', text: pick(BOT_GREET), ts: Date.now() }); bot.step = 1; }
+  }, 12000 + Math.random() * 9000);
+}
+function resetBot(bot) {
+  clearTimeout(bot.silenceTimer); clearTimeout(bot.replyTimer);
+  bot.silenceTimer = bot.replyTimer = null;
+  bot.partner = null; bot.state = 'idle'; bot.step = 0; bot.avoid = new Set();
+}
+function pairWithBot(human, bot) {
+  clearTimeout(human.botMatchTimer);
+  human.partner = bot; bot.partner = human;
+  human.state = 'paired'; bot.state = 'paired';
+  human.avoid.add(bot.id);
+  bot.avatar = pick(BOT_AVATARS);   // 每次換頭像，像不同的人
+  send(human.ws, { type: 'matched', partner: partnerInfo(bot) });
+  botOnMatched(bot);
+}
+function scheduleBotMatch(c) {
+  if (c.botMatchTimer) return;
+  if (c.mode === 'opposite' && c.gender === 'female') return;   // 她要找男生，機器人都是女生 → 不配，繼續等真人
+  c.botMatchTimer = setTimeout(() => {
+    c.botMatchTimer = null;
+    if (c.state !== 'waiting') return;
+    const b = idleBot();
+    if (!b) return;   // 機器人都在忙 → 繼續等真人
+    dequeue(c);
+    pairWithBot(c, b);
+    broadcastStats();
+  }, 3500 + Math.random() * 6000);
 }
 
 function attach(wss) {
@@ -173,7 +259,7 @@ function attach(wss) {
         if (p) {
           const r = reports.get(p.ip) || { count: 0 }; r.count++; r.ts = Date.now(); reports.set(p.ip, r);
           c.avoid.add(p.id);
-          if (r.count >= REPORT_THRESHOLD) {
+          if (!p.isBot && r.count >= REPORT_THRESHOLD) {
             blockedUntil.set(p.ip, Date.now() + BLOCK_MS);
             send(p.ws, { type: 'blocked' });
             dequeue(p); if (p.partner) unpair(p, 'blocked');
@@ -214,5 +300,7 @@ function attach(wss) {
     ws.on('error', () => {});
   });
 }
+
+initBots();   // 啟動即上線 5 隻機器人（算在線人數 + 當真人配不到時的備援對象）
 
 module.exports = { attach, TOPICS };
