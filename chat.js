@@ -46,6 +46,13 @@ function sanitizeAvatar(a) {
   }
   return '';
 }
+// 聊天圖片：合法 image base64，上限較大(~400KB base64≈300KB 圖)
+function sanitizeImg(a) {
+  a = String(a || '').trim();
+  if (a.indexOf('data:image/') !== 0 || a.length > 400000) return '';
+  if (!/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(a)) return '';
+  return a;
+}
 function isBlocked(ip) { const u = blockedUntil.get(ip); if (!u) return false; if (Date.now() > u) { blockedUntil.delete(ip); return false; } return true; }
 function partnerInfo(x) { return { nick: x.nick, gender: x.gender || null, tags: x.tags || [], bio: x.bio || '', avatar: x.avatar || '' }; }
 
@@ -290,6 +297,17 @@ function attach(wss) {
         let reply = null;
         if (m.replyTo && m.replyTo.mid) reply = { mid: String(m.replyTo.mid).slice(0, 20), text: clean(m.replyTo.text, 60) };
         const payload = { type: 'msg', text: chk.text, ts: Date.now(), mid: 'm' + (midSeq++), reply };
+        send(c.partner.ws, payload);
+        send(ws, { ...payload, me: true });
+        return;
+      }
+
+      if (m.type === 'img') {
+        if (c.state !== 'paired' || !c.partner) return;
+        if (!c.limiter.allow(c.id)) { send(ws, { type: 'sys', msg: '太快了，慢一點～' }); return; }
+        const img = sanitizeImg(m.data);
+        if (!img) { send(ws, { type: 'sys', msg: '圖片無法傳送（格式或太大）' }); return; }
+        const payload = { type: 'msg', img, ts: Date.now(), mid: 'm' + (midSeq++) };
         send(c.partner.ws, payload);
         send(ws, { ...payload, me: true });
         return;

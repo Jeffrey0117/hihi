@@ -121,6 +121,10 @@
   .pm-item.danger{color:#d98a92}
   .prof-days{margin:2px 0 18px;font-size:.8rem;color:var(--muted)}
   .prof-days b{color:var(--accent)}
+  .msgimg{max-width:min(240px,62vw);max-height:300px;border-radius:12px;display:block;cursor:pointer}
+  .img-viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
+  .img-viewer.on{display:flex}
+  .img-viewer img{max-width:100%;max-height:100%;border-radius:8px}
   .cin input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);font-size:1rem}
   .cin input::placeholder{color:var(--muted)}
   .cin button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);border:none;border-radius:999px;width:46px;height:46px;font-size:18px;font-weight:800;cursor:pointer;flex:none}
@@ -200,10 +204,15 @@
       <button id="cSend">↑</button>
       <div class="plus-menu" id="plusMenu">
         <div class="pm-item" data-act="profile">我的簡介</div>
+        <div class="pm-item" data-act="image">傳送圖片</div>
         <div class="pm-item danger" data-act="report">檢舉對方</div>
       </div>
+      <input type="file" id="imgFile" accept="image/*" style="display:none">
     </div>
   </div>
+
+  <!-- 圖片全螢幕檢視 -->
+  <div class="img-viewer" id="imgViewer"><img id="imgViewerImg" src="" alt=""></div>
 
   <!-- 對方資料檢視 modal -->
   <div class="modal" id="partnerModal">
@@ -323,37 +332,39 @@
 
   function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||''; $('pinfo').textContent='已配對'; }
   function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; clearMsgs(); setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
-  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ var row=renderMsg(mm.text,mm.me,mm.ts,mm.mid,mm.reply,mm.react); if(mm.recalled) markRecalled(row); }); $('cinput').focus(); }
+  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ var row=renderMsg(mm.text,mm.me,mm.ts,mm.mid,mm.reply,mm.react,mm.img); if(mm.recalled) markRecalled(row); }); $('cinput').focus(); }
   var chatMsgs=[];
   function persistMsgs(){ try{ sessionStorage.setItem('hihi_msgs',JSON.stringify(chatMsgs.slice(-200))); }catch(e){} }
   function clearMsgs(){ chatMsgs=[]; try{ sessionStorage.removeItem('hihi_msgs'); }catch(e){} }
   var REACTS=['👍','❤️','😮','😂','😡'];
-  function renderMsg(text,me,ts,mid,reply,react){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); if(mid)row.setAttribute('data-mid',mid);
+  function renderMsg(text,me,ts,mid,reply,react,img){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); if(mid)row.setAttribute('data-mid',mid);
     var rq=(reply&&reply.text)?'<div class="reply-quote">↩ '+reply.text+'</div>':'';
+    var body=img?'<img class="msgimg" src="'+img+'" alt="">':'<span class="msgtext">'+text+'</span>';
     row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div>'
-      +'<div class="bub">'+rq+'<span class="msgtext">'+text+'</span><div class="reacts'+(react?' on':'')+'">'+(react||'')+'</div></div>'
+      +'<div class="bub">'+rq+body+'<div class="reacts'+(react?' on':'')+'">'+(react||'')+'</div></div>'
       +'<div class="ts">'+fmt(ts)+'</div>';
     row.querySelector('.av').onclick=(me?openProfile:openPartnerView);
     var bub=row.querySelector('.bub'); bub.onclick=function(ev){ openMsgMenu(row,ev); }; bub.oncontextmenu=function(ev){ openMsgMenu(row,ev); };
     el.appendChild(row); el.scrollTop=el.scrollHeight; return row; }
-  function addMsg(m,me){ renderMsg(m.text,me,m.ts,m.mid,m.reply,null); chatMsgs.push({text:m.text,me:!!me,ts:m.ts,mid:m.mid||null,reply:m.reply||null,react:null,recalled:false}); persistMsgs(); }
+  function addMsg(m,me){ renderMsg(m.text,me,m.ts,m.mid,m.reply,null,m.img); chatMsgs.push({text:m.text,me:!!me,ts:m.ts,mid:m.mid||null,reply:m.reply||null,react:null,recalled:false,img:m.img||null}); persistMsgs(); }
 
   // ---- 訊息選單（回覆 / 複製 / 收回 / 表情反應）----
   var curMenu=null, replyTo=null;
   function closeMsgMenu(){ if(curMenu){ curMenu.remove(); curMenu=null; document.removeEventListener('click',closeMsgMenu); } }
   function openMsgMenu(row,ev){ ev.preventDefault(); ev.stopPropagation(); closeMsgMenu();
     var bub=row.querySelector('.bub'); if(bub.classList.contains('recalled')) return;
-    var me=row.classList.contains('me'); var mid=row.getAttribute('data-mid'); var mt=row.querySelector('.msgtext'); var text=mt?mt.textContent:'';
+    var me=row.classList.contains('me'); var mid=row.getAttribute('data-mid'); var isImg=!!row.querySelector('.msgimg'); var mt=row.querySelector('.msgtext'); var text=isImg?'[圖片]':(mt?mt.textContent:'');
     var menu=document.createElement('div'); menu.className='msg-menu';
     var h=''; if(!me) h+='<div class="mm-reacts">'+REACTS.map(function(e){return '<span class="mm-react" data-e="'+e+'">'+e+'</span>'}).join('')+'</div>';
-    h+='<div class="mm-item" data-act="reply">回覆</div><div class="mm-item" data-act="copy">複製訊息</div>'; if(me) h+='<div class="mm-item danger" data-act="recall">收回</div>';
+    if(isImg) h+='<div class="mm-item" data-act="view">查看大圖</div>';
+    h+='<div class="mm-item" data-act="reply">回覆</div>'; if(!isImg) h+='<div class="mm-item" data-act="copy">複製訊息</div>'; if(me) h+='<div class="mm-item danger" data-act="recall">收回</div>';
     menu.innerHTML=h; document.body.appendChild(menu); curMenu=menu;
     var br=bub.getBoundingClientRect(), mw=menu.offsetWidth, mh=menu.offsetHeight;
     var top=br.top-mh-6; if(top<8)top=br.bottom+6; if(top+mh>window.innerHeight-8)top=window.innerHeight-mh-8; if(top<8)top=8;
     var left=me?(br.right-mw):br.left; if(left<8)left=8; if(left+mw>window.innerWidth-8)left=window.innerWidth-mw-8;
     menu.style.top=top+'px'; menu.style.left=left+'px';
     menu.querySelectorAll('.mm-react').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); doReact(mid,x.getAttribute('data-e'),row); closeMsgMenu(); }; });
-    menu.querySelectorAll('.mm-item').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); var a=x.getAttribute('data-act'); if(a==='copy')doCopy(text); else if(a==='reply')startReply(mid,text); else if(a==='recall')doRecall(mid,row); closeMsgMenu(); }; });
+    menu.querySelectorAll('.mm-item').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); var a=x.getAttribute('data-act'); if(a==='copy')doCopy(text); else if(a==='reply')startReply(mid,text); else if(a==='recall')doRecall(mid,row); else if(a==='view'){ var im=row.querySelector('.msgimg'); if(im) openImgViewer(im.src); } closeMsgMenu(); }; });
     setTimeout(function(){ document.addEventListener('click',closeMsgMenu); },0);
   }
   function setReactOnRow(row,emoji){ var r=row.querySelector('.reacts'); if(r){ r.textContent=emoji||''; r.classList.toggle('on',!!emoji); } }
@@ -383,8 +394,22 @@
   document.addEventListener('click',function(){ $('plusMenu').classList.remove('on'); });
   $('plusMenu').querySelectorAll('.pm-item').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); $('plusMenu').classList.remove('on'); var a=x.getAttribute('data-act');
     if(a==='profile') openProfile();
+    else if(a==='image'){ $('imgFile').click(); }
     else if(a==='report'){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); }
   }; });
+  // 傳送圖片：canvas 壓到最長邊 1000px、JPEG，太大再壓一次；base64 送出(不存伺服器)
+  $('imgFile').onchange=function(){ var f=$('imgFile').files[0]; if(!f)return; if(f.size>15*1024*1024){ alert('圖片太大，請選 15MB 以下'); $('imgFile').value=''; return; }
+    var img=new Image(); var rd=new FileReader();
+    rd.onload=function(){ img.onload=function(){ var max=1000, w=img.width, h=img.height; if(w>max||h>max){ if(w>h){h=Math.round(h*max/w); w=max;} else {w=Math.round(w*max/h); h=max;} }
+      var cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h);
+      var b64=cv.toDataURL('image/jpeg',0.72); if(b64.length>400000) b64=cv.toDataURL('image/jpeg',0.5);
+      if(b64.length>400000){ alert('圖片壓縮後仍太大，換一張'); $('imgFile').value=''; return; }
+      if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'img',data:b64}));
+      $('imgFile').value=''; };
+      img.src=rd.result; };
+    rd.readAsDataURL(f); };
+  function openImgViewer(src){ $('imgViewerImg').src=src; $('imgViewer').classList.add('on'); }
+  $('imgViewer').onclick=function(){ $('imgViewer').classList.remove('on'); $('imgViewerImg').src=''; };
   $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('leaveBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
 })();
