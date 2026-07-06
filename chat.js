@@ -98,35 +98,50 @@ function requeueOrMatch(c) {
 }
 
 // ===================== 機器人（製造活躍感 / 不讓人乾等）=====================
-// 固定 5 隻機器人，一律算在線；真人配不到真人時，隔幾秒配一隻機器人。
-// 機器人「通常等對方先講」，回覆很簡單：招呼 → 性別/地點 → 年齡 → 之後隨口閒聊，隨機變換。
-const BOT_COUNT = 5;
+// 女生機器人(5)：慢慢聊，招呼→性別/地點→年齡→閒聊，不會主動離開。
+// 男生機器人(20)：很簡單，說幾句(男/年紀/問男女/約嗎)就離開，模擬一堆來去匆匆的男生。
+// 一律算在線；真人配不到真人時，隔幾秒配一隻(依對方需求的性別挑)。
+const BOT_F_COUNT = 5;
+const BOT_M_COUNT = 20;
 const BOT_GREET = ['hi', 'hi~', '嗨', '哈囉', 'hello', '嗨嗨', '你好'];
 const BOT_IDENT = ['女', '女生', '高雄', '台中', '女的', '北部', '台北', '台南'];
 const BOT_AGE = ['20', '24', '25', '21歲', '23', '19', '22歲', '20歲'];
 const BOT_FILLER = ['嗯嗯', '然後呢', '哈哈', '你呢', '還好欸', '在幹嘛', '你住哪', '有點無聊', '對啊', '你幾歲', '剛下班', '你呢？', '😆', '看心情', '躺著滑手機', '不會啊'];
+const BOT_M_SCRIPTS = [   // 男生：講完一串就離開
+  ['男'], ['男的', '約嗎'], ['你男生女生？', '約嗎'], ['24 男', '約嗎？'],
+  ['約嗎'], ['男', '幾歲', '約嗎'], ['男生', '有約嗎'], ['台北 男', '約嗎'], ['你女生嗎', '約嗎'], ['安', '男', '約嗎'],
+];
 const BOTS = [];
 function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
-function idleBot() { return BOTS.find((b) => b.state === 'idle') || null; }
-function botSend(bot, data) {   // 機器人「收到」server 訊息 → 只對真人講話有反應
+function botSend(bot, data) {   // 機器人「收到」server 訊息 → 只有女生會對真人講話反應
   let d; try { d = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
-  if (d && d.type === 'msg' && !d.me) botReply(bot);
+  if (d && d.type === 'msg' && !d.me && bot.kind === 'female') botReply(bot);
 }
 function initBots() {
-  for (let i = 0; i < BOT_COUNT; i++) {
+  let n = 0;
+  const mk = (kind) => {
     const b = {
-      isBot: true, id: 900000 + i, nick: '訪客', gender: 'female', mode: 'random',
-      tags: [], code: '', bio: '', avatar: 'female',
+      isBot: true, kind, id: 900000 + (n++), nick: '訪客',
+      gender: kind === 'female' ? 'female' : 'male',
+      avatar: kind === 'female' ? 'female' : 'male',
+      mode: 'random', tags: [], code: '', bio: '',
       partner: null, state: 'idle', avoid: new Set(), verified: true,
-      step: 0, ip: 'bot#' + i, silenceTimer: null, replyTimer: null, botMatchTimer: null,
+      step: 0, mi: 0, mscript: null, ip: 'bot', silenceTimer: null, replyTimer: null, botMatchTimer: null,
       ws: { readyState: 1, send: null },
     };
     b.ws.send = (data) => botSend(b, data);
-    BOTS.push(b);
-    clients.add(b);   // 算進在線人數
-  }
+    BOTS.push(b); clients.add(b);   // 算進在線人數
+  };
+  for (let i = 0; i < BOT_F_COUNT; i++) mk('female');
+  for (let i = 0; i < BOT_M_COUNT; i++) mk('male');
 }
-function botReply(bot) {   // 對方講話了 → 停頓一下（像在打字）再回一句
+function idleBotFor(c) {   // 依對方需求挑：找異性就給異性機器人；隨機就任意(男多女少→多半是男生，很真實)
+  let want = null;
+  if (c.mode === 'opposite' && c.gender) want = c.gender === 'male' ? 'female' : 'male';
+  const pool = BOTS.filter((b) => b.state === 'idle' && (!want || b.gender === want));
+  return pool.length ? pick(pool) : null;
+}
+function botReply(bot) {   // 女生：對方講話→停頓一下再回一句
   if (!bot.partner || bot.replyTimer) return;
   clearTimeout(bot.silenceTimer); bot.silenceTimer = null;
   const human = bot.partner;
@@ -143,17 +158,46 @@ function botReply(bot) {   // 對方講話了 → 停頓一下（像在打字）
     send(human.ws, { type: 'msg', text, ts: Date.now() });
   }, 1400 + Math.random() * 2400);
 }
-function botOnMatched(bot) {   // 通常等對方先講；太久沒人開口就主動破冰
-  bot.step = 0;
-  clearTimeout(bot.silenceTimer);
-  bot.silenceTimer = setTimeout(() => {
-    if (bot.partner && bot.step === 0) { send(bot.partner.ws, { type: 'msg', text: pick(BOT_GREET), ts: Date.now() }); bot.step = 1; }
-  }, 12000 + Math.random() * 9000);
+function maleNextLine(bot, delay) {   // 男生：照腳本一句句講，講完就離開
+  clearTimeout(bot.replyTimer);
+  bot.replyTimer = setTimeout(() => {
+    bot.replyTimer = null;
+    if (!bot.partner) return;
+    if (bot.mi < bot.mscript.length) {
+      const human = bot.partner;
+      send(human.ws, { type: 'typing' });
+      setTimeout(() => {
+        if (bot.partner !== human) return;
+        send(human.ws, { type: 'msg', text: bot.mscript[bot.mi], ts: Date.now() });
+        bot.mi++;
+        maleNextLine(bot, 3000 + Math.random() * 4000);
+      }, 800 + Math.random() * 1200);
+    } else {
+      botLeave(bot);
+    }
+  }, delay);
+}
+function botOnMatched(bot) {
+  bot.step = 0; bot.mi = 0;
+  if (bot.kind === 'male') {
+    bot.mscript = pick(BOT_M_SCRIPTS);
+    maleNextLine(bot, 2000 + Math.random() * 3500);   // 男生主動開口
+  } else {
+    clearTimeout(bot.silenceTimer);   // 女生通常等對方先講；太久沒人開口就主動破冰
+    bot.silenceTimer = setTimeout(() => {
+      if (bot.partner && bot.step === 0) { send(bot.partner.ws, { type: 'msg', text: pick(BOT_GREET), ts: Date.now() }); bot.step = 1; }
+    }, 12000 + Math.random() * 9000);
+  }
+}
+function botLeave(bot) {   // 男生講完 → 像真人一樣離開，對方看到「對方已離開」
+  const human = bot.partner;
+  if (human) { human.partner = null; human.state = 'idle'; send(human.ws, { type: 'partner_left', reason: 'bot_leave' }); }
+  resetBot(bot);
 }
 function resetBot(bot) {
   clearTimeout(bot.silenceTimer); clearTimeout(bot.replyTimer);
   bot.silenceTimer = bot.replyTimer = null;
-  bot.partner = null; bot.state = 'idle'; bot.step = 0; bot.avoid = new Set();
+  bot.partner = null; bot.state = 'idle'; bot.step = 0; bot.mi = 0; bot.mscript = null; bot.avoid = new Set();
 }
 function pairWithBot(human, bot) {
   clearTimeout(human.botMatchTimer);
@@ -165,12 +209,11 @@ function pairWithBot(human, bot) {
 }
 function scheduleBotMatch(c) {
   if (c.botMatchTimer) return;
-  if (c.mode === 'opposite' && c.gender === 'female') return;   // 她要找男生，機器人都是女生 → 不配，繼續等真人
   c.botMatchTimer = setTimeout(() => {
     c.botMatchTimer = null;
     if (c.state !== 'waiting') return;
-    const b = idleBot();
-    if (!b) return;   // 機器人都在忙 → 繼續等真人
+    const b = idleBotFor(c);
+    if (!b) return;   // 沒有合適的機器人 → 繼續等真人
     dequeue(c);
     pairWithBot(c, b);
     broadcastStats();
