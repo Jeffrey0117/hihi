@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>嗨嗨聊天室</title>
+<style>
+  :root{--bg:#0f1013;--panel:#16171c;--panel2:#1c1e24;--border:#282a32;--text:#e6e6ea;--muted:#8a8b93;--accent:#5b9bd5;--me:#2a3b4d}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;height:100vh;height:100dvh;overflow:hidden}
+  a{color:var(--accent)}
+  /* 進入畫面 */
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .gate-box{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:30px 26px;max-width:360px;width:100%;text-align:center}
+  .gate-box h1{font-size:1.5rem;margin-bottom:6px}
+  .gate-box h1 b{color:var(--accent)}
+  .gate-box p{color:var(--muted);font-size:.86rem;margin-bottom:20px;line-height:1.6}
+  .gate-box input{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:1rem;margin-bottom:12px;text-align:center}
+  .gate-box button{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer}
+  .gate-box .rule{font-size:.72rem;color:var(--muted);margin-top:16px;line-height:1.7}
+  /* 主介面 */
+  #app{display:none;height:100%;grid-template-columns:200px 1fr}
+  .side{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+  .side .brand{padding:14px 16px;font-weight:800;border-bottom:1px solid var(--border)}
+  .side .brand b{color:var(--accent)}
+  .rooms{flex:1;overflow:auto;padding:8px}
+  .room{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;cursor:pointer;color:var(--muted);font-size:.9rem}
+  .room:hover{background:var(--panel2);color:var(--text)}
+  .room.on{background:var(--panel2);color:var(--text);font-weight:600}
+  .room .n{font-size:.72rem;background:#23252c;border-radius:999px;padding:1px 8px}
+  .side .foot{padding:12px 16px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);line-height:1.7}
+  .main{display:flex;flex-direction:column;min-height:0}
+  .top{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .top .rn{font-weight:700}
+  .top .on{font-size:.76rem;color:var(--muted)}
+  .msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .m{max-width:76%;padding:9px 13px;border-radius:14px;background:var(--panel2);font-size:.92rem;line-height:1.5;word-break:break-word;align-self:flex-start}
+  .m .who{font-size:.72rem;color:var(--muted);margin-bottom:3px}
+  .m.me{align-self:flex-end;background:var(--me)}
+  .sys{align-self:center;font-size:.76rem;color:var(--muted);background:transparent}
+  .inbar{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px}
+  .inbar input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:1rem}
+  .inbar button{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}
+  @media(max-width:640px){#app{grid-template-columns:1fr}.side{position:fixed;left:0;top:0;bottom:0;width:200px;transform:translateX(-100%);transition:.2s;z-index:5}.side.open{transform:none}.top .menu{display:inline-block}}
+  .top .menu{display:none;cursor:pointer;font-size:1.2rem}
+</style>
+</head>
+<body>
+  <!-- 進入閘（之後接 areyoubot PoW 驗證：要聊要驗證） -->
+  <div id="gate">
+    <div class="gate-box">
+      <h1>嗨嗨<b>聊天室</b></h1>
+      <p>匿名、閱後即焚的公開聊天。取個暱稱就能進來聊。</p>
+      <input id="nick" maxlength="16" placeholder="輸入暱稱（可留空隨機）" autocomplete="off">
+      <button id="enterBtn">進入聊天</button>
+      <div class="rule">請保持友善。禁止張貼連結、廣告、違法或未成年相關內容，違者將被移除。</div>
+    </div>
+  </div>
+
+  <!-- 主介面 -->
+  <div id="app">
+    <div class="side" id="side">
+      <div class="brand">嗨嗨<b>聊天室</b></div>
+      <div class="rooms" id="rooms"></div>
+      <div class="foot">匿名 · 訊息不留存<br><a id="sideLink" href="#" target="_blank" rel="noopener" style="color:var(--muted)">關於本站</a></div>
+    </div>
+    <div class="main">
+      <div class="top"><span class="menu" id="menuBtn">☰</span><span class="rn" id="roomName">閒聊大廳</span><span class="on" id="roomOnline"></span></div>
+      <div class="msgs" id="msgs"></div>
+      <div class="inbar">
+        <input id="input" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
+        <button id="sendBtn">送出</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var ws, myNick, curRoom='lobby', rooms=[];
+  var $=function(id){return document.getElementById(id)};
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+  function connect(){
+    var proto=location.protocol==='https:'?'wss':'ws';
+    ws=new WebSocket(proto+'://'+location.host+'/ws');
+    ws.onopen=function(){ ws.send(JSON.stringify({type:'join', nick:myNick, room:curRoom})); };
+    ws.onmessage=function(e){
+      var d; try{d=JSON.parse(e.data)}catch(_){return}
+      if(d.type==='rooms'){ rooms=d.rooms; renderRooms(); }
+      else if(d.type==='joined'){ curRoom=d.room; myNick=d.nick; setRoomHeader(); $('msgs').innerHTML=''; (d.recent||[]).forEach(function(m){addMsg(m,false)}); renderRooms(); }
+      else if(d.type==='msg'){ addMsg(d, !!d.me); }
+      else if(d.type==='presence'){ setRoomHeader(); }
+      else if(d.type==='sys'){ addSys(d.msg); }
+    };
+    ws.onclose=function(){ addSys('連線中斷，重新連線中…'); setTimeout(connect,1500); };
+  }
+  function renderRooms(){
+    var el=$('rooms'); el.innerHTML='';
+    rooms.forEach(function(r){
+      var d=document.createElement('div'); d.className='room'+(r.id===curRoom?' on':'');
+      d.innerHTML='<span>'+esc(r.name)+'</span><span class="n">'+r.online+'</span>';
+      d.onclick=function(){ if(r.id!==curRoom){ ws.send(JSON.stringify({type:'switch',room:r.id})); $('side').classList.remove('open'); } };
+      el.appendChild(d);
+    });
+  }
+  function setRoomHeader(){
+    var r=rooms.filter(function(x){return x.id===curRoom})[0];
+    $('roomName').textContent=r?r.name:'聊天室';
+    $('roomOnline').textContent=r?('· '+r.online+' 人在線'):'';
+  }
+  function addMsg(m,me){
+    var el=$('msgs'); var d=document.createElement('div'); d.className='m'+(me?' me':'');
+    d.innerHTML=(me?'':'<div class="who">'+esc(m.nick)+'</div>')+m.text; // text 已在後端 escape
+    el.appendChild(d); el.scrollTop=el.scrollHeight;
+  }
+  function addSys(t){ var el=$('msgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+
+  function enter(){
+    myNick=$('nick').value.trim();
+    $('gate').style.display='none'; $('app').style.display='grid';
+    connect();
+    $('input').focus();
+  }
+  function sendMsg(){
+    var v=$('input').value.trim(); if(!v||!ws||ws.readyState!==1) return;
+    ws.send(JSON.stringify({type:'msg',text:v})); $('input').value='';
+  }
+  $('enterBtn').onclick=enter;
+  $('nick').addEventListener('keydown',function(e){if(e.key==='Enter')enter()});
+  $('sendBtn').onclick=sendMsg;
+  $('input').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
+  $('menuBtn').onclick=function(){$('side').classList.toggle('open')};
+})();
+</script>
+</body>
+</html>
