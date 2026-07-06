@@ -111,7 +111,16 @@
   .tdot{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block;animation:tb 1.2s infinite}
   .tdot:nth-child(3){animation-delay:.15s}.tdot:nth-child(4){animation-delay:.3s}
   @keyframes tb{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
-  .cin{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:rgba(36,32,40,.7)}
+  .cin{position:relative;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:rgba(36,32,40,.7)}
+  .plus-btn{background:var(--panel2);border:1px solid var(--border);color:var(--muted);border-radius:50%;width:46px;height:46px;font-size:24px;cursor:pointer;flex:none;line-height:1;padding:0}
+  .plus-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .plus-menu{display:none;position:absolute;bottom:calc(100% + 8px);left:14px;z-index:55;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:5px;box-shadow:0 10px 34px rgba(0,0,0,.5);min-width:150px}
+  .plus-menu.on{display:block}
+  .pm-item{padding:12px 16px;font-size:.95rem;cursor:pointer;border-radius:9px;color:var(--text)}
+  .pm-item:hover{background:var(--panel2)}
+  .pm-item.danger{color:#d98a92}
+  .prof-days{margin:2px 0 18px;font-size:.8rem;color:var(--muted)}
+  .prof-days b{color:var(--accent)}
   .cin input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);font-size:1rem}
   .cin input::placeholder{color:var(--muted)}
   .cin button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--onacc);border:none;border-radius:999px;width:46px;height:46px;font-size:18px;font-weight:800;cursor:pointer;flex:none}
@@ -178,7 +187,6 @@
       <span class="logo" style="font-size:1.5rem">hihi</span>
       <span class="pinfo" id="pinfo"></span>
       <span class="acts">
-        <button class="btn-s" id="reportBtn">檢舉</button>
         <button class="btn-s" id="nextBtn">找下一個</button>
         <button class="btn-s warn" id="leaveBtn">離開</button>
       </span>
@@ -187,8 +195,13 @@
     <div class="typing" id="typing"><span>對方正在輸入</span><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>
     <div class="reply-bar" id="replyBar"><span class="rb-text" id="rbText"></span><span class="rb-close" id="rbClose">✕</span></div>
     <div class="cin">
+      <button id="plusBtn" class="plus-btn" title="更多">＋</button>
       <input id="cinput" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
       <button id="cSend">↑</button>
+      <div class="plus-menu" id="plusMenu">
+        <div class="pm-item" data-act="profile">我的簡介</div>
+        <div class="pm-item danger" data-act="report">檢舉對方</div>
+      </div>
     </div>
   </div>
 
@@ -215,6 +228,7 @@
       <div class="av-upload" id="avUpload">📷 上傳自己的照片</div>
       <input type="file" id="avFile" accept="image/*" style="display:none">
       <div class="mbio-wrap"><input id="mbio" maxlength="40" placeholder="簡單介紹一下你自己"><span>✏️</span></div>
+      <div class="prof-days" id="profDays"></div>
       <button class="msave" id="pSave">儲存</button>
     </div>
   </div>
@@ -228,6 +242,7 @@
   var ws, TOPICS=[], typingTimer=null, lastTyping=0, partnerAv='', partnerProf={};
   var sid; try{ sid=sessionStorage.getItem('hihi_sid'); if(!sid){ sid='sid_'+Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem('hihi_sid',sid); } }catch(e){ sid='sid_'+Math.random().toString(36).slice(2); }
   function setInChat(v){ try{ if(v){sessionStorage.setItem('hihi_inchat','1');} else {sessionStorage.removeItem('hihi_inchat'); clearMsgs();} }catch(e){} }
+  try{ if(!localStorage.getItem('hihi_first')) localStorage.setItem('hihi_first', String(Date.now())); }catch(e){}   // 記錄第一次來的日子（上線天數用）
   var prof={avatar:'',bio:''};
   try{ var sp=JSON.parse(localStorage.getItem('hihi_profile')||'{}'); if(sp.avatar && (sp.avatar==='male'||sp.avatar==='female'||sp.avatar.indexOf('data:')===0)) prof.avatar=sp.avatar; if(sp.bio)prof.bio=sp.bio; }catch(e){}
   var sel={mode:'random',gender:null,tags:[],code:'',verified:false};
@@ -243,7 +258,9 @@
   // 上傳照片當頭貼：canvas 壓到 96px 方形 → base64(不存後端、最低成本)
   $('avUpload').onclick=function(){ $('avFile').click(); };
   $('avFile').onchange=function(){ var f=$('avFile').files[0]; if(!f)return; if(f.size>8*1024*1024){ alert('圖片太大，請選 8MB 以下'); return; } var img=new Image(); var rd=new FileReader(); rd.onload=function(){ img.onload=function(){ var s=96, cv=document.createElement('canvas'); cv.width=s; cv.height=s; var ctx=cv.getContext('2d'); var m=Math.min(img.width,img.height), sx=(img.width-m)/2, sy=(img.height-m)/2; ctx.drawImage(img,sx,sy,m,m,0,0,s,s); var b64=cv.toDataURL('image/jpeg',0.72); prof.avatar=b64; renderBigAv(b64); markAvSel(); $('avFile').value=''; }; img.src=rd.result; }; rd.readAsDataURL(f); };
-  function openProfile(){ renderBigAv(prof.avatar); markAvSel(); $('mbio').value=prof.bio; $('profileModal').classList.add('show'); }
+  function openProfile(){ renderBigAv(prof.avatar); markAvSel(); $('mbio').value=prof.bio;
+    try{ var f=parseInt(localStorage.getItem('hihi_first')||'0',10); if(f){ var days=Math.floor((Date.now()-f)/86400000)+1; $('profDays').innerHTML='你已經來嗨嗨 <b>'+days+'</b> 天了'; } }catch(e){}
+    $('profileModal').classList.add('show'); }
   function closeProfile(){ $('profileModal').classList.remove('show'); }
   function saveProfile(){ prof.bio=$('mbio').value.trim(); try{localStorage.setItem('hihi_profile',JSON.stringify(prof))}catch(e){} applyProfile(); closeProfile(); if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'profile',avatar:prof.avatar,bio:prof.bio})); }
   $('meChip').onclick=openProfile;
@@ -361,7 +378,13 @@
   $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
   $('cinput').addEventListener('input',function(){ var now=Date.now(); if(now-lastTyping>1500 && ws&&ws.readyState===1){ lastTyping=now; ws.send(JSON.stringify({type:'typing'})); } });
   $('cinput').addEventListener('focus',function(){ setTimeout(fitChat,150); setTimeout(fitChat,350); setTimeout(fitChat,600); }); // 鍵盤彈出動畫期間多校正幾次
-  $('reportBtn').onclick=function(){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
+  // ＋ 選單（我的簡介 / 檢舉）
+  $('plusBtn').onclick=function(e){ e.stopPropagation(); $('plusMenu').classList.toggle('on'); };
+  document.addEventListener('click',function(){ $('plusMenu').classList.remove('on'); });
+  $('plusMenu').querySelectorAll('.pm-item').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); $('plusMenu').classList.remove('on'); var a=x.getAttribute('data-act');
+    if(a==='profile') openProfile();
+    else if(a==='report'){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); }
+  }; });
   $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); goWait('重新配對中…','正在幫你找下一位聊天對象'); };
   $('leaveBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
 })();
