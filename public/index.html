@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>hihi</title>
+<title>嗨嗨 - 匿名聊天</title>
+<meta name="description" content="嗨嗨，找個人陪你聊聊。匿名、即時、閱後即焚。">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.svg">
 <style>
@@ -279,7 +280,7 @@
   $('startBtn').onclick=function(){ if($('startBtn').disabled) return; show('wait'); sendStart('', true); };
   $('cancelBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
 
-  function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||'😀'; var bits=[]; if(p&&p.gender)bits.push(p.gender==='male'?'男':'女'); if(p&&p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); }
+  function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||''; $('pinfo').textContent='已配對'; }
   function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; clearMsgs(); setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
   function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ renderMsg(mm.text,mm.me,mm.ts); }); $('cinput').focus(); }
   var chatMsgs=[];

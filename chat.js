@@ -212,6 +212,8 @@ function scheduleBotMatch(c) {
   c.botMatchTimer = setTimeout(() => {
     c.botMatchTimer = null;
     if (c.state !== 'waiting') return;
+    const real = findMatch(c);   // 真人優先：配機器人前再確認一次有沒有真人在等
+    if (real) { dequeue(c); pair(c, real); broadcastStats(); return; }
     const b = idleBotFor(c);
     if (!b) return;   // 沒有合適的機器人 → 繼續等真人
     dequeue(c);
