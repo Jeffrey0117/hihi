@@ -3,133 +3,194 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>嗨嗨聊天室</title>
+<title>hihi</title>
 <style>
-  :root{--bg:#0f1013;--panel:#16171c;--panel2:#1c1e24;--border:#282a32;--text:#e6e6ea;--muted:#8a8b93;--accent:#5b9bd5;--me:#2a3b4d}
+  :root{
+    --bg1:#101820;--bg2:#152029;--panel:#16212b;--panel2:#1d2a35;--border:#26353f;
+    --text:#e8eef0;--muted:#7f95a0;--accent:#4fd6c0;--accent2:#39b6a3;--me:#204a45;--other:#1d2a35;
+  }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;height:100vh;height:100dvh;overflow:hidden}
-  a{color:var(--accent)}
-  /* 進入畫面 */
-  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
-  .gate-box{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:30px 26px;max-width:360px;width:100%;text-align:center}
-  .gate-box h1{font-size:1.5rem;margin-bottom:6px}
-  .gate-box h1 b{color:var(--accent)}
-  .gate-box p{color:var(--muted);font-size:.86rem;margin-bottom:20px;line-height:1.6}
-  .gate-box input{width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-size:1rem;margin-bottom:12px;text-align:center}
-  .gate-box button{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:700;cursor:pointer}
-  .gate-box .rule{font-size:.72rem;color:var(--muted);margin-top:16px;line-height:1.7}
-  /* 主介面 */
-  #app{display:none;height:100%;grid-template-columns:200px 1fr}
-  .side{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
-  .side .brand{padding:14px 16px;font-weight:800;border-bottom:1px solid var(--border)}
-  .side .brand b{color:var(--accent)}
-  .rooms{flex:1;overflow:auto;padding:8px}
-  .room{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;cursor:pointer;color:var(--muted);font-size:.9rem}
-  .room:hover{background:var(--panel2);color:var(--text)}
-  .room.on{background:var(--panel2);color:var(--text);font-weight:600}
-  .room .n{font-size:.72rem;background:#23252c;border-radius:999px;padding:1px 8px}
-  .side .foot{padding:12px 16px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);line-height:1.7}
-  .main{display:flex;flex-direction:column;min-height:0}
-  .top{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-  .top .rn{font-weight:700}
-  .top .on{font-size:.76rem;color:var(--muted)}
-  .msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-  .m{max-width:76%;padding:9px 13px;border-radius:14px;background:var(--panel2);font-size:.92rem;line-height:1.5;word-break:break-word;align-self:flex-start}
-  .m .who{font-size:.72rem;color:var(--muted);margin-bottom:3px}
-  .m.me{align-self:flex-end;background:var(--me)}
-  .sys{align-self:center;font-size:.76rem;color:var(--muted);background:transparent}
-  .inbar{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px}
-  .inbar input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:1rem}
-  .inbar button{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}
-  @media(max-width:640px){#app{grid-template-columns:1fr}.side{position:fixed;left:0;top:0;bottom:0;width:200px;transform:translateX(-100%);transition:.2s;z-index:5}.side.open{transform:none}.top .menu{display:inline-block}}
-  .top .menu{display:none;cursor:pointer;font-size:1.2rem}
+  html,body{height:100%}
+  body{background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,#101820);color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;min-height:100vh;min-height:100dvh}
+  .logo{font-family:'Brush Script MT','Segoe Script','Snell Roundhand',cursive;font-weight:400;color:#fff;letter-spacing:1px}
+  a{color:var(--muted);text-decoration:none}
+  a:hover{color:var(--text)}
+
+  /* ===== 進場 gate ===== */
+  #gate{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;text-align:center}
+  #gate .logo{font-size:3.4rem;line-height:1;margin-bottom:6px}
+  #gate .tag{color:var(--muted);font-size:.92rem;margin-bottom:26px}
+  .tabs{display:flex;gap:24px;justify-content:center;margin-bottom:22px}
+  .tab{color:var(--muted);font-size:1rem;cursor:pointer;padding-bottom:4px;border-bottom:2px solid transparent}
+  .tab.on{color:#fff;border-color:var(--accent)}
+  .genders{display:none;gap:10px;justify-content:center;margin-bottom:20px}
+  .genders.show{display:flex}
+  .gd{border:1px solid var(--border);color:var(--muted);border-radius:999px;padding:6px 18px;font-size:.86rem;cursor:pointer}
+  .gd.on{border-color:var(--accent);color:var(--accent)}
+  .divider{color:var(--muted);font-size:.82rem;margin:8px 0 16px;display:flex;align-items:center;gap:12px;justify-content:center}
+  .divider::before,.divider::after{content:"";height:1px;width:44px;background:var(--border)}
+  .topics{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;max-width:420px;margin:0 auto 20px}
+  .topic{color:var(--muted);font-size:.92rem;cursor:pointer}
+  .topic.on{color:var(--accent);font-weight:600}
+  .code{width:220px;max-width:80vw;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);text-align:center;font-size:.92rem;margin-bottom:18px}
+  .verify{display:flex;align-items:center;gap:10px;justify-content:center;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:0 auto 18px;width:260px;max-width:82vw;cursor:pointer}
+  .verify .box{width:22px;height:22px;border:2px solid var(--muted);border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:14px}
+  .verify.ok .box{border-color:var(--accent)}
+  .verify span{font-size:.9rem;color:var(--muted)}
+  .verify small{margin-left:auto;font-size:.6rem;color:#5a6b74;line-height:1.2;text-align:right}
+  .start{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08201d;border:none;border-radius:10px;padding:12px 40px;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(79,214,192,.28)}
+  .start:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  .foot{margin-top:34px;display:flex;gap:22px;font-size:.82rem;color:var(--muted)}
+  .rule{margin-top:14px;font-size:.68rem;color:#5a6b74;max-width:360px;line-height:1.7}
+
+  /* ===== 配對中 ===== */
+  #wait{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center}
+  #wait.show{display:flex}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #wait .t{color:var(--text);font-size:1.05rem}
+  #wait .s{color:var(--muted);font-size:.84rem}
+  .ghost{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 20px;cursor:pointer;font-size:.86rem}
+
+  /* ===== 聊天 ===== */
+  #chat{display:none;flex-direction:column;height:100vh;height:100dvh}
+  #chat.show{display:flex}
+  .chead{padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:rgba(16,24,32,.6)}
+  .chead .logo{font-size:1.4rem}
+  .chead .pinfo{font-size:.8rem;color:var(--muted)}
+  .chead .acts{margin-left:auto;display:flex;gap:8px}
+  .cmsgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;gap:8px;align-items:flex-end;max-width:82%}
+  .row.me{align-self:flex-end;flex-direction:row-reverse}
+  .row.other{align-self:flex-start}
+  .av{width:34px;height:34px;border-radius:50%;flex:none;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted)}
+  .row.me .av{background:#2a3b45}
+  .row.other .av{background:#3a2b3d}
+  .bub{padding:9px 13px;border-radius:14px;font-size:.94rem;line-height:1.5;word-break:break-word;background:var(--other)}
+  .row.me .bub{background:var(--me)}
+  .ts{font-size:.64rem;color:#5a6b74;align-self:flex-end;margin:0 4px}
+  .sys{align-self:center;font-size:.76rem;color:var(--muted);padding:4px 0}
+  .cin{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:10px;background:rgba(16,24,32,.6)}
+  .cin input{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:999px;padding:12px 16px;color:var(--text);font-size:1rem}
+  .cin button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#08201d;border:none;border-radius:999px;width:46px;height:46px;font-size:18px;font-weight:800;cursor:pointer;flex:none}
+  .btn-s{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:.82rem}
+  .btn-s.warn{border-color:#7a3b3b;color:#d98a8a}
 </style>
 </head>
 <body>
-  <!-- 進入閘（之後接 areyoubot PoW 驗證：要聊要驗證） -->
+
+  <!-- 進場 -->
   <div id="gate">
-    <div class="gate-box">
-      <h1>嗨嗨<b>聊天室</b></h1>
-      <p>匿名、閱後即焚的公開聊天。取個暱稱就能進來聊。</p>
-      <input id="nick" maxlength="16" placeholder="輸入暱稱（可留空隨機）" autocomplete="off">
-      <button id="enterBtn">進入聊天</button>
-      <div class="rule">請保持友善。禁止張貼連結、廣告、違法或未成年相關內容，違者將被移除。</div>
+    <div class="logo">hihi</div>
+    <div class="tag">找個人陪你聊聊</div>
+
+    <div class="tabs">
+      <div class="tab on" data-mode="random">隨機</div>
+      <div class="tab" data-mode="opposite">異性</div>
     </div>
+
+    <div class="genders" id="genders">
+      <div class="gd" data-g="male">我是男生</div>
+      <div class="gd" data-g="female">我是女生</div>
+    </div>
+
+    <div class="divider">想聊聊？</div>
+    <div class="topics" id="topics"></div>
+
+    <input id="code" class="code" maxlength="20" placeholder="輸入暗號…（可留空）" autocomplete="off">
+
+    <div class="verify" id="verify"><span class="box" id="vbox"></span><span>我不是機器人</span><small>anti-bot<br>驗證</small></div>
+
+    <button class="start" id="startBtn" disabled>開始聊天</button>
+
+    <div class="foot"><a href="#">討論區</a><a href="#">關於</a><a href="#">分享</a></div>
+    <div class="rule">匿名 · 訊息不留存。禁止張貼連結、廣告、違法或未成年相關內容，違者移除。</div>
   </div>
 
-  <!-- 主介面 -->
-  <div id="app">
-    <div class="side" id="side">
-      <div class="brand">嗨嗨<b>聊天室</b></div>
-      <div class="rooms" id="rooms"></div>
-      <div class="foot">匿名 · 訊息不留存<br><a id="sideLink" href="#" target="_blank" rel="noopener" style="color:var(--muted)">關於本站</a></div>
+  <!-- 配對中 -->
+  <div id="wait">
+    <div class="spinner"></div>
+    <div class="t">配對中…</div>
+    <div class="s" id="waitSub">正在幫你找一個聊天對象</div>
+    <button class="ghost" id="cancelBtn">取消</button>
+  </div>
+
+  <!-- 聊天 -->
+  <div id="chat">
+    <div class="chead">
+      <span class="logo">hihi</span>
+      <span class="pinfo" id="pinfo"></span>
+      <span class="acts">
+        <button class="btn-s" id="nextBtn">找下一個</button>
+        <button class="btn-s warn" id="leaveBtn">離開</button>
+      </span>
     </div>
-    <div class="main">
-      <div class="top"><span class="menu" id="menuBtn">☰</span><span class="rn" id="roomName">閒聊大廳</span><span class="on" id="roomOnline"></span></div>
-      <div class="msgs" id="msgs"></div>
-      <div class="inbar">
-        <input id="input" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
-        <button id="sendBtn">送出</button>
-      </div>
+    <div class="cmsgs" id="cmsgs"></div>
+    <div class="cin">
+      <input id="cinput" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
+      <button id="cSend">↑</button>
     </div>
   </div>
 
 <script>
 (function(){
-  var ws, myNick, curRoom='lobby', rooms=[];
   var $=function(id){return document.getElementById(id)};
-  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var ws, TOPICS=[], sel={mode:'random',gender:null,tags:[],code:'',verified:false};
+
+  // ---- gate 互動 ----
+  document.querySelectorAll('.tab').forEach(function(t){ t.onclick=function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')}); t.classList.add('on');
+    sel.mode=t.dataset.mode;
+    $('genders').classList.toggle('show', sel.mode==='opposite');
+    refreshStart();
+  };});
+  document.querySelectorAll('.gd').forEach(function(g){ g.onclick=function(){
+    document.querySelectorAll('.gd').forEach(function(x){x.classList.remove('on')}); g.classList.add('on');
+    sel.gender=g.dataset.g; refreshStart();
+  };});
+  $('verify').onclick=function(){ sel.verified=!sel.verified; $('verify').classList.toggle('ok',sel.verified); $('vbox').textContent=sel.verified?'✓':''; refreshStart(); };
+  $('code').oninput=function(){ sel.code=$('code').value.trim(); };
+  function renderTopics(){ var el=$('topics'); el.innerHTML=''; TOPICS.forEach(function(t){ var d=document.createElement('div'); d.className='topic'; d.textContent=t; d.onclick=function(){ var i=sel.tags.indexOf(t); if(i>=0){sel.tags.splice(i,1);d.classList.remove('on')} else {sel.tags.push(t);d.classList.add('on')} }; el.appendChild(d); }); }
+  function refreshStart(){ var ok=sel.verified && (sel.mode!=='opposite' || sel.gender); $('startBtn').disabled=!ok; }
+
+  function show(id){ ['gate','wait','chat'].forEach(function(x){ var e=$(x); if(x===id){e.style.display=(x==='gate')?'flex':'flex';e.classList.add('show')} else {e.style.display='none';e.classList.remove('show')} }); }
 
   function connect(){
     var proto=location.protocol==='https:'?'wss':'ws';
     ws=new WebSocket(proto+'://'+location.host+'/ws');
-    ws.onopen=function(){ ws.send(JSON.stringify({type:'join', nick:myNick, room:curRoom})); };
-    ws.onmessage=function(e){
-      var d; try{d=JSON.parse(e.data)}catch(_){return}
-      if(d.type==='rooms'){ rooms=d.rooms; renderRooms(); }
-      else if(d.type==='joined'){ curRoom=d.room; myNick=d.nick; setRoomHeader(); $('msgs').innerHTML=''; (d.recent||[]).forEach(function(m){addMsg(m,false)}); renderRooms(); }
-      else if(d.type==='msg'){ addMsg(d, !!d.me); }
-      else if(d.type==='presence'){ setRoomHeader(); }
+    ws.onopen=function(){ ws.send(JSON.stringify({type:'start', nick:'', mode:sel.mode, gender:sel.gender, tags:sel.tags, code:sel.code, verify:sel.verified})); };
+    ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
+      if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); }
+      else if(d.type==='waiting'){ show('wait'); }
+      else if(d.type==='matched'){ startChat(d.partner); }
+      else if(d.type==='msg'){ addMsg(d,!!d.me); }
       else if(d.type==='sys'){ addSys(d.msg); }
+      else if(d.type==='partner_left'){ addSys('對方已離開。點「找下一個」再配對。'); }
+      else if(d.type==='left'){ show('gate'); }
     };
-    ws.onclose=function(){ addSys('連線中斷，重新連線中…'); setTimeout(connect,1500); };
+    ws.onclose=function(){ if($('chat').classList.contains('show')) addSys('連線中斷。'); };
   }
-  function renderRooms(){
-    var el=$('rooms'); el.innerHTML='';
-    rooms.forEach(function(r){
-      var d=document.createElement('div'); d.className='room'+(r.id===curRoom?' on':'');
-      d.innerHTML='<span>'+esc(r.name)+'</span><span class="n">'+r.online+'</span>';
-      d.onclick=function(){ if(r.id!==curRoom){ ws.send(JSON.stringify({type:'switch',room:r.id})); $('side').classList.remove('open'); } };
-      el.appendChild(d);
-    });
-  }
-  function setRoomHeader(){
-    var r=rooms.filter(function(x){return x.id===curRoom})[0];
-    $('roomName').textContent=r?r.name:'聊天室';
-    $('roomOnline').textContent=r?('· '+r.online+' 人在線'):'';
-  }
-  function addMsg(m,me){
-    var el=$('msgs'); var d=document.createElement('div'); d.className='m'+(me?' me':'');
-    d.innerHTML=(me?'':'<div class="who">'+esc(m.nick)+'</div>')+m.text; // text 已在後端 escape
-    el.appendChild(d); el.scrollTop=el.scrollHeight;
-  }
-  function addSys(t){ var el=$('msgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+  // hello 需要先連線才拿得到 topics → 先連一次拿 topics，配對用同一條
+  connect();
 
-  function enter(){
-    myNick=$('nick').value.trim();
-    $('gate').style.display='none'; $('app').style.display='grid';
-    connect();
-    $('input').focus();
-  }
-  function sendMsg(){
-    var v=$('input').value.trim(); if(!v||!ws||ws.readyState!==1) return;
-    ws.send(JSON.stringify({type:'msg',text:v})); $('input').value='';
-  }
-  $('enterBtn').onclick=enter;
-  $('nick').addEventListener('keydown',function(e){if(e.key==='Enter')enter()});
-  $('sendBtn').onclick=sendMsg;
-  $('input').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
-  $('menuBtn').onclick=function(){$('side').classList.toggle('open')};
+  $('startBtn').onclick=function(){ if($('startBtn').disabled) return;
+    if(!ws||ws.readyState!==1){ connect(); setTimeout(function(){ ws.send(JSON.stringify({type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,verify:sel.verified})); },300); }
+    else ws.send(JSON.stringify({type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,verify:sel.verified}));
+    show('wait');
+  };
+  $('cancelBtn').onclick=function(){ ws.send(JSON.stringify({type:'leave'})); show('gate'); };
+
+  function startChat(p){ $('cmsgs').innerHTML=''; var bits=[]; if(p.gender)bits.push(p.gender==='male'?'男':'女'); if(p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); show('chat'); addSys('已經幫你配對到一個人，開始聊吧～'); $('cinput').focus(); }
+  function addMsg(m,me){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other');
+    row.innerHTML='<div class="av">'+(me?'🙂':'😀')+'</div><div class="bub">'+m.text+'</div><div class="ts">'+fmt(m.ts)+'</div>';
+    el.appendChild(row); el.scrollTop=el.scrollHeight; }
+  function addSys(t){ var el=$('cmsgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+  function fmt(ts){ try{var d=new Date(ts);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}catch(e){return''} }
+  function sendMsg(){ var v=$('cinput').value.trim(); if(!v||!ws||ws.readyState!==1)return; ws.send(JSON.stringify({type:'msg',text:v})); $('cinput').value=''; }
+  $('cSend').onclick=sendMsg;
+  $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
+  $('nextBtn').onclick=function(){ ws.send(JSON.stringify({type:'next'})); show('wait'); };
+  $('leaveBtn').onclick=function(){ ws.send(JSON.stringify({type:'leave'})); show('gate'); };
 })();
 </script>
 </body>

@@ -1,113 +1,99 @@
-// 聊天核心：公開主題房、匿名、閱後即焚（訊息不落地，只保留每房最近數則供新加入者看）。
-// 每則訊息都過 filter（擋連結/違法/廣告）+ ratelimit（擋洗版）。
+// 聊天核心：1 對 1 隨機配對（對標 knocktalk）。匿名、閱後即焚（訊息只在兩人之間即時傳，不落地）。
+// 每則訊息過 filter（擋連結/違法/廣告）+ ratelimit（擋洗版）。
 'use strict';
 
 const { checkMessage } = require('./lib/filter');
 const { createLimiter } = require('./lib/ratelimit');
 
-// 預設主題房（乾淨中性）。ephemeral：history 只留最近 RECENT 則在記憶體，程序結束即消失。
-const ROOMS = [
-  { id: 'lobby', name: '閒聊大廳' },
-  { id: 'mood', name: '心情抒發' },
-  { id: 'night', name: '深夜場' },
-  { id: 'make-friends', name: '交友配對' },
-  { id: 'acg', name: '動漫遊戲' },
-];
-const ROOM_IDS = new Set(ROOMS.map((r) => r.id));
-const RECENT = 25;
+const TOPICS = ['生活', '純聊', '時事娛樂', '工作學業', '感情'];
 
-const recent = new Map();   // roomId -> [ {nick, text, ts} ]
-const clients = new Set();  // 所有連線 { ws, id, nick, room, limiter }
 let seq = 1;
-
-function sanitizeNick(n) {
-  let s = String(n || '').trim().replace(/[<>&"]/g, '').slice(0, 16);
-  if (!s) s = '訪客' + Math.floor(1000 + Math.random() * 9000);
-  return s;
-}
-
-function roomCount(roomId) {
-  let n = 0; for (const c of clients) if (c.room === roomId) n++; return n;
-}
+const clients = new Set(); // 所有連線
+const waiting = [];        // 等待配對的佇列
 
 function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch (e) {} }
+function sanitizeNick(n) { let s = String(n || '').trim().replace(/[<>&"]/g, '').slice(0, 16); if (!s) s = '訪客' + Math.floor(1000 + Math.random() * 9000); return s; }
+function partnerInfo(x) { return { nick: x.nick, gender: x.gender || null, tags: x.tags || [] }; }
 
-function broadcast(roomId, obj, exceptId) {
-  for (const c of clients) if (c.room === roomId && c.id !== exceptId) send(c.ws, obj);
+// 從等待佇列找一個相容的對象
+function findMatch(c) {
+  for (let i = 0; i < waiting.length; i++) {
+    const w = waiting[i];
+    if (w.id === c.id) continue;
+    let ok = false;
+    if (c.code && w.code) ok = (c.code === w.code);           // 有暗號：同暗號才配（私下約聊）
+    else if (!c.code && !w.code) {
+      if (c.mode === 'opposite' || w.mode === 'opposite') {   // 異性模式：需性別相反
+        ok = !!(c.gender && w.gender && c.gender !== w.gender);
+      } else ok = true;                                        // 隨機
+    }
+    if (ok) { waiting.splice(i, 1); return w; }
+  }
+  return null;
+}
+function dequeue(c) { const i = waiting.indexOf(c); if (i >= 0) waiting.splice(i, 1); }
+
+function pair(a, b) {
+  a.partner = b; b.partner = a; a.state = 'paired'; b.state = 'paired';
+  send(a.ws, { type: 'matched', partner: partnerInfo(b) });
+  send(b.ws, { type: 'matched', partner: partnerInfo(a) });
+}
+function unpair(c, reason) {
+  const p = c.partner;
+  c.partner = null; c.state = 'idle';
+  if (p) { p.partner = null; p.state = 'idle'; send(p.ws, { type: 'partner_left', reason }); }
 }
 
-function pushRecent(roomId, m) {
-  const arr = recent.get(roomId) || [];
-  arr.push(m); while (arr.length > RECENT) arr.shift();
-  recent.set(roomId, arr);
+function requeueOrMatch(c) {
+  dequeue(c);
+  const m = findMatch(c);
+  if (m) pair(c, m);
+  else { c.state = 'waiting'; waiting.push(c); send(c.ws, { type: 'waiting' }); }
 }
 
-function roomList() {
-  return ROOMS.map((r) => ({ id: r.id, name: r.name, online: roomCount(r.id) }));
-}
-
-// 掛到 ws.Server
 function attach(wss) {
   wss.on('connection', (ws, req) => {
-    const client = { ws, id: seq++, nick: null, room: null, limiter: createLimiter({ limit: 8, windowMs: 10000 }), ip: (req.headers['cf-connecting-ip'] || (req.socket && req.socket.remoteAddress) || '') };
-    clients.add(client);
-
-    // 一連上先給房間清單（還沒 join，得先 join 才能收發）
-    send(ws, { type: 'rooms', rooms: roomList() });
+    const c = {
+      ws, id: seq++, nick: null, gender: null, mode: 'random', tags: [], code: '',
+      partner: null, state: 'idle', limiter: createLimiter({ limit: 8, windowMs: 10000 }),
+      ip: (req.headers['cf-connecting-ip'] || (req.socket && req.socket.remoteAddress) || ''),
+    };
+    clients.add(c);
+    send(ws, { type: 'hello', topics: TOPICS, online: clients.size });
 
     ws.on('message', (buf) => {
-      let msg; try { msg = JSON.parse(buf.toString()); } catch (e) { return; }
+      let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
 
-      if (msg.type === 'join') {
-        // 驗證閘：areyoubot PoW 之後接這裡（msg.verify）。MVP 先放行，但保留欄位。
-        const room = ROOM_IDS.has(msg.room) ? msg.room : 'lobby';
-        client.nick = sanitizeNick(msg.nick);
-        client.room = room;
-        send(ws, { type: 'joined', room, nick: client.nick, recent: recent.get(room) || [] });
-        broadcast(room, { type: 'presence', room, online: roomCount(room), event: 'join', nick: client.nick }, client.id);
-        wss.emit('rooms-changed');
+      if (m.type === 'start') {
+        // 驗證閘：areyoubot PoW 之後接這裡（m.verify）。MVP 先放行、保留欄位。
+        c.nick = sanitizeNick(m.nick);
+        c.gender = (m.gender === 'male' || m.gender === 'female') ? m.gender : null;
+        c.mode = (m.mode === 'opposite') ? 'opposite' : 'random';
+        c.tags = Array.isArray(m.tags) ? m.tags.filter((t) => TOPICS.includes(t)).slice(0, 5) : [];
+        c.code = String(m.code || '').trim().slice(0, 20);
+        if (c.state === 'paired') unpair(c, 'restart');
+        requeueOrMatch(c);
         return;
       }
 
-      if (!client.room) return; // 沒 join 不能發
-
-      if (msg.type === 'switch') {
-        const prev = client.room;
-        const room = ROOM_IDS.has(msg.room) ? msg.room : 'lobby';
-        client.room = room;
-        broadcast(prev, { type: 'presence', room: prev, online: roomCount(prev), event: 'leave', nick: client.nick }, client.id);
-        send(ws, { type: 'joined', room, nick: client.nick, recent: recent.get(room) || [] });
-        broadcast(room, { type: 'presence', room, online: roomCount(room), event: 'join', nick: client.nick }, client.id);
-        wss.emit('rooms-changed');
-        return;
-      }
-
-      if (msg.type === 'msg') {
-        if (!client.limiter.allow(client.id)) { send(ws, { type: 'sys', msg: '訊息太快了，慢一點～' }); return; }
-        const chk = checkMessage(msg.text);
+      if (m.type === 'msg') {
+        if (c.state !== 'paired' || !c.partner) return;
+        if (!c.limiter.allow(c.id)) { send(ws, { type: 'sys', msg: '訊息太快了，慢一點～' }); return; }
+        const chk = checkMessage(m.text);
         if (!chk.ok) { send(ws, { type: 'sys', msg: chk.msg || '這則訊息無法送出。' }); return; }
-        const m = { nick: client.nick, text: chk.text, ts: Date.now() };
-        pushRecent(client.room, m);
-        broadcast(client.room, { type: 'msg', ...m });
-        send(ws, { type: 'msg', ...m, me: true });
+        const payload = { type: 'msg', text: chk.text, ts: Date.now() };
+        send(c.partner.ws, payload);
+        send(ws, { ...payload, me: true });
         return;
       }
+
+      if (m.type === 'next') { unpair(c, 'next'); requeueOrMatch(c); return; }   // 換下一個
+      if (m.type === 'leave') { unpair(c, 'leave'); dequeue(c); c.state = 'idle'; send(ws, { type: 'left' }); return; }
     });
 
-    ws.on('close', () => {
-      clients.delete(client);
-      client.limiter.drop(client.id);
-      if (client.room) { broadcast(client.room, { type: 'presence', room: client.room, online: roomCount(client.room), event: 'leave', nick: client.nick }, client.id); wss.emit('rooms-changed'); }
-    });
+    ws.on('close', () => { dequeue(c); unpair(c, 'disconnect'); clients.delete(c); });
     ws.on('error', () => {});
-  });
-
-  // 房間人數變動時，廣播新的房間清單給所有人（更新左側在線數）
-  let pending = null;
-  wss.on('rooms-changed', () => {
-    if (pending) return;
-    pending = setTimeout(() => { pending = null; const rl = roomList(); for (const c of clients) send(c.ws, { type: 'rooms', rooms: rl }); }, 400);
   });
 }
 
-module.exports = { attach, ROOMS };
+module.exports = { attach, TOPICS };
