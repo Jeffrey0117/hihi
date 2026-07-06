@@ -142,7 +142,6 @@ function attach(wss) {
           c.sid = sid; bySid.set(sid, c);
           oc.partner = null; clients.delete(oc);
           send(ws, { type: 'resumed', partner: partnerInfo(partner) });
-          send(partner.ws, { type: 'partner_back' });
         } else {
           send(ws, { type: 'resume_failed' });
         }
@@ -203,9 +202,8 @@ function attach(wss) {
     ws.on('close', () => {
       dequeue(c);
       if (c.state === 'paired' && c.partner) {
-        // 可能是重整 → 保留配對，給對方一個「等待重連」狀態，寬限期內可 resume
+        // 可能是重整 → 靜靜保留配對，寬限期內可 resume（不打擾對方，快速重整無感）
         c.disconnected = true;
-        send(c.partner.ws, { type: 'partner_away' });
         c.graceTimer = setTimeout(() => {
           if (c.disconnected) { unpair(c, 'disconnect'); if (c.sid) bySid.delete(c.sid); clients.delete(c); broadcastStats(); }
         }, RESUME_GRACE_MS);

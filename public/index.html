@@ -262,8 +262,6 @@
       else if(d.type==='matched'){ startChat(d.partner); }
       else if(d.type==='resumed'){ resumeChat(d.partner); }
       else if(d.type==='resume_failed'){ setInChat(false); show('gate'); }
-      else if(d.type==='partner_away'){ addSys('對方連線中斷，等待重新連線…'); }
-      else if(d.type==='partner_back'){ addSys('對方已重新連線 👍'); }
       else if(d.type==='msg'){ hideTyping(); addMsg(d,!!d.me); }
       else if(d.type==='typing'){ showTyping(); }
       else if(d.type==='sys'){ addSys(d.msg); }
