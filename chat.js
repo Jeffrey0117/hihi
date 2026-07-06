@@ -10,11 +10,11 @@ const TOPICS = ['生活', '純聊', '時事娛樂', '工作學業', '感情'];
 const REPORT_THRESHOLD = 3;             // 累積被檢舉幾次 → 封鎖
 const BLOCK_MS = 30 * 60 * 1000;        // 封鎖時長
 
-// areyoubot 隱形 PoW 驗證：要聊要驗證。secret 只在後端，用 demo key，正式請去 admin 建 site 換掉。
-const AYB_SECRET = process.env.AREYOUBOT_SECRET || 'aybsk_demo';
-const AYB_VERIFY_URL = process.env.AREYOUBOT_VERIFY_URL || 'https://areyoubot.isnowfriend.com/api/verify';
+// 驗證（之後要接真 PoW 再用；設了 AREYOUBOT_* 才會啟用，否則走前端手動勾選）。secret 只在後端。
+const AYB_SECRET = process.env.AREYOUBOT_SECRET || '';
+const AYB_VERIFY_URL = process.env.AREYOUBOT_VERIFY_URL || '';
 async function verifyAreYouBot(token) {
-  if (!token) return false;
+  if (!token || !AYB_VERIFY_URL) return false;
   try {
     const r = await fetch(AYB_VERIFY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, secret: AYB_SECRET }) });
     const d = await r.json();

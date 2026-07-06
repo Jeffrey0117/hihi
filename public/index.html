@@ -138,7 +138,7 @@
     <div class="divider">想聊聊？</div>
     <div class="topics" id="topics"></div>
     <input id="code" class="code" maxlength="20" placeholder="輸入暗號…（可留空）" autocomplete="off">
-    <div class="verify" id="verify"><span class="box" id="vbox"></span><span id="vtext">背景驗證中…</span><small>anti-bot<br>PoW</small></div>
+    <div class="verify" id="verify"><span class="box" id="vbox"></span><span id="vtext">我不是機器人</span><small>anti-bot</small></div>
     <button class="start" id="startBtn" disabled>開始聊天</button>
 
     <div class="foot"><a href="#">討論區</a><a href="#">關於</a><a href="#">分享</a></div>
@@ -199,7 +199,6 @@
     </div>
   </div>
 
-<script async src="https://areyoubot.isnowfriend.com/widget.js" data-ayb-sitekey="ayb_demo" data-ayb-badge="off" onerror="window.__aybFailed=1"></script>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
@@ -240,14 +239,9 @@
   // ---- gate ----
   document.querySelectorAll('.tab').forEach(function(t){ t.onclick=function(){ document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')}); t.classList.add('on'); sel.mode=t.dataset.mode; $('genders').classList.toggle('show',sel.mode==='opposite'); refresh(); };});
   document.querySelectorAll('.gd').forEach(function(g){ g.onclick=function(){ document.querySelectorAll('.gd').forEach(function(x){x.classList.remove('on')}); g.classList.add('on'); sel.gender=g.dataset.g; refresh(); };});
-  // 驗證：areyoubot 隱形 PoW 就緒就用它；~3秒沒載到(服務未起)→ 退回手動「我不是機器人」勾選
-  var aybMode='pending';
-  (function(){ var tries=0; (function poll(){
-    if(window.areyoubot && window.areyoubot.ready){ aybMode='ayb'; sel.verified=true; $('verify').classList.add('ok'); $('vbox').textContent='✓'; $('vtext').textContent='已通過驗證'; refresh(); return; }
-    if(tries++>8){ aybMode='manual'; $('vtext').textContent='我不是機器人'; $('verify').style.cursor='pointer';
-      $('verify').onclick=function(){ sel.verified=!sel.verified; $('verify').classList.toggle('ok',sel.verified); $('vbox').textContent=sel.verified?'✓':''; refresh(); }; return; }
-    setTimeout(poll,400);
-  })(); })();
+  // 驗證：勾「我不是機器人」（之後要接真 PoW 再說）
+  $('vtext').textContent='我不是機器人';
+  $('verify').onclick=function(){ sel.verified=!sel.verified; $('verify').classList.toggle('ok',sel.verified); $('vbox').textContent=sel.verified?'✓':''; refresh(); };
   $('code').oninput=function(){ sel.code=$('code').value.trim(); };
   function renderTopics(){ var el=$('topics'); el.innerHTML=''; TOPICS.forEach(function(t){ var d=document.createElement('div'); d.className='topic'; d.textContent=t; d.onclick=function(){ var i=sel.tags.indexOf(t); if(i>=0){sel.tags.splice(i,1);d.classList.remove('on')} else {sel.tags.push(t);d.classList.add('on')} }; el.appendChild(d); }); }
   function refresh(){ $('startBtn').disabled=!(sel.verified && (sel.mode!=='opposite'||sel.gender)); }
@@ -282,9 +276,7 @@
 
   function sendStart(token,manual){ var p={type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,bio:prof.bio,avatar:prof.avatar,token:token||'',verify:!!manual,sid:sid};
     if(!ws||ws.readyState!==1){ connect(); setTimeout(function(){ws.send(JSON.stringify(p))},300); } else ws.send(JSON.stringify(p)); }
-  $('startBtn').onclick=function(){ if($('startBtn').disabled) return; show('wait');
-    if(aybMode==='ayb' && window.areyoubot && window.areyoubot.solve){ window.areyoubot.solve().then(function(tk){sendStart(tk,false)}).catch(function(){ show('gate'); alert('驗證失敗，請重試'); }); }
-    else sendStart('', true); };
+  $('startBtn').onclick=function(){ if($('startBtn').disabled) return; show('wait'); sendStart('', true); };
   $('cancelBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
 
   function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||'😀'; var bits=[]; if(p&&p.gender)bits.push(p.gender==='male'?'男':'女'); if(p&&p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); }
