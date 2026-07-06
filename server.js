@@ -21,7 +21,9 @@ const server = http.createServer((req, res) => {
   if (!path.resolve(full).startsWith(path.resolve(PUBLIC))) { res.writeHead(403); res.end('forbidden'); return; }
   fs.readFile(full, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404'); return; }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' });
+    const headers = { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' };
+    if (path.extname(full) === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'; // 開發期避免抓到壞舊版
+    res.writeHead(200, headers);
     res.end(data);
   });
 });
