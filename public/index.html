@@ -41,6 +41,8 @@
   .verify small{margin-left:auto;font-size:.6rem;color:var(--muted);line-height:1.2;text-align:right}
   .start{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:12px 40px;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(63,174,156,.32)}
   .start:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  .online{color:var(--accent);font-size:.78rem;margin-bottom:20px;margin-top:-18px}
+  .typing{display:none;padding:2px 18px 6px;font-size:.74rem;color:var(--muted)}
   .foot{margin-top:34px;display:flex;gap:22px;font-size:.82rem;color:var(--muted)}
   .rule{margin-top:14px;font-size:.68rem;color:var(--muted);max-width:360px;line-height:1.7}
 
@@ -87,6 +89,7 @@
   <div id="gate">
     <div class="logo">hihi</div>
     <div class="tag">找個人陪你聊聊</div>
+    <div class="online" id="online"></div>
 
     <div class="tabs">
       <div class="tab on" data-mode="random">隨機</div>
@@ -101,6 +104,7 @@
     <div class="divider">想聊聊？</div>
     <div class="topics" id="topics"></div>
 
+    <input id="bio" class="code" maxlength="40" placeholder="打聲招呼／一句自介（選填）" autocomplete="off">
     <input id="code" class="code" maxlength="20" placeholder="輸入暗號…（可留空）" autocomplete="off">
 
     <div class="verify" id="verify"><span class="box" id="vbox"></span><span>我不是機器人</span><small>anti-bot<br>驗證</small></div>
@@ -125,11 +129,13 @@
       <span class="logo">hihi</span>
       <span class="pinfo" id="pinfo"></span>
       <span class="acts">
+        <button class="btn-s" id="reportBtn">檢舉</button>
         <button class="btn-s" id="nextBtn">找下一個</button>
         <button class="btn-s warn" id="leaveBtn">離開</button>
       </span>
     </div>
     <div class="cmsgs" id="cmsgs"></div>
+    <div class="typing" id="typing">對方正在輸入…</div>
     <div class="cin">
       <input id="cinput" maxlength="300" placeholder="輸入訊息…（不可貼連結）" autocomplete="off">
       <button id="cSend">↑</button>
@@ -139,7 +145,7 @@
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
-  var ws, TOPICS=[], sel={mode:'random',gender:null,tags:[],code:'',verified:false};
+  var ws, TOPICS=[], typingTimer=null, lastTyping=0, sel={mode:'random',gender:null,tags:[],code:'',bio:'',verified:false};
 
   document.querySelectorAll('.tab').forEach(function(t){ t.onclick=function(){
     document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')}); t.classList.add('on');
@@ -153,6 +159,7 @@
   };});
   $('verify').onclick=function(){ sel.verified=!sel.verified; $('verify').classList.toggle('ok',sel.verified); $('vbox').textContent=sel.verified?'✓':''; refreshStart(); };
   $('code').oninput=function(){ sel.code=$('code').value.trim(); };
+  $('bio').oninput=function(){ sel.bio=$('bio').value.trim(); };
   function renderTopics(){ var el=$('topics'); el.innerHTML=''; TOPICS.forEach(function(t){ var d=document.createElement('div'); d.className='topic'; d.textContent=t; d.onclick=function(){ var i=sel.tags.indexOf(t); if(i>=0){sel.tags.splice(i,1);d.classList.remove('on')} else {sel.tags.push(t);d.classList.add('on')} }; el.appendChild(d); }); }
   function refreshStart(){ var ok=sel.verified && (sel.mode!=='opposite' || sel.gender); $('startBtn').disabled=!ok; }
 
@@ -163,24 +170,31 @@
     ws=new WebSocket(proto+'://'+location.host+'/ws');
     ws.onopen=function(){};
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
-      if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); }
+      if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); setOnline(d); }
+      else if(d.type==='stats'){ setOnline(d); }
       else if(d.type==='waiting'){ show('wait'); }
       else if(d.type==='matched'){ startChat(d.partner); }
-      else if(d.type==='msg'){ addMsg(d,!!d.me); }
+      else if(d.type==='msg'){ hideTyping(); addMsg(d,!!d.me); }
+      else if(d.type==='typing'){ showTyping(); }
       else if(d.type==='sys'){ addSys(d.msg); }
-      else if(d.type==='partner_left'){ addSys('對方已離開。點「找下一個」再配對。'); }
+      else if(d.type==='partner_left'){ hideTyping(); addSys('對方已離開。點「找下一個」再配對。'); }
       else if(d.type==='left'){ show('gate'); }
+      else if(d.type==='need_verify'){ show('gate'); alert('請先勾選「我不是機器人」再開始。'); }
+      else if(d.type==='blocked'){ show('gate'); alert('由於多次被檢舉，你暫時無法使用聊天（約 30 分鐘）。'); }
     };
     ws.onclose=function(){ if($('chat').classList.contains('show')) addSys('連線中斷。'); };
   }
   connect();
 
-  function doStart(){ var p={type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,verify:sel.verified};
+  function setOnline(d){ if(d&&typeof d.online==='number') $('online').textContent='目前 '+d.online+' 人在線'+(d.waiting? ' · '+d.waiting+' 人等待中':''); }
+  function showTyping(){ $('typing').style.display='block'; clearTimeout(typingTimer); typingTimer=setTimeout(hideTyping,2500); }
+  function hideTyping(){ $('typing').style.display='none'; }
+  function doStart(){ var p={type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,bio:sel.bio,verify:sel.verified};
     if(!ws||ws.readyState!==1){ connect(); setTimeout(function(){ ws.send(JSON.stringify(p)); },300); } else ws.send(JSON.stringify(p)); }
   $('startBtn').onclick=function(){ if($('startBtn').disabled) return; doStart(); show('wait'); };
   $('cancelBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); show('gate'); };
 
-  function startChat(p){ $('cmsgs').innerHTML=''; var bits=[]; if(p.gender)bits.push(p.gender==='male'?'男':'女'); if(p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); show('chat'); addSys('已經幫你配對到一個人，開始聊吧～'); $('cinput').focus(); }
+  function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; var bits=[]; if(p.gender)bits.push(p.gender==='male'?'男':'女'); if(p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); show('chat'); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
   function addMsg(m,me){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other');
     row.innerHTML='<div class="av">'+(me?'🙂':'😀')+'</div><div class="bub">'+m.text+'</div><div class="ts">'+fmt(m.ts)+'</div>';
     el.appendChild(row); el.scrollTop=el.scrollHeight; }
@@ -189,6 +203,8 @@
   function sendMsg(){ var v=$('cinput').value.trim(); if(!v||!ws||ws.readyState!==1)return; ws.send(JSON.stringify({type:'msg',text:v})); $('cinput').value=''; }
   $('cSend').onclick=sendMsg;
   $('cinput').addEventListener('keydown',function(e){if(e.key==='Enter')sendMsg()});
+  $('cinput').addEventListener('input',function(){ var now=Date.now(); if(now-lastTyping>1500 && ws&&ws.readyState===1){ lastTyping=now; ws.send(JSON.stringify({type:'typing'})); } });
+  $('reportBtn').onclick=function(){ if(!confirm('確定要檢舉並離開這個對象嗎？')) return; if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'report'})); show('wait'); };
   $('nextBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'next'})); show('wait'); };
   $('leaveBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); show('gate'); };
 })();
