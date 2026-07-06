@@ -209,6 +209,7 @@ function pairWithBot(human, bot) {
 }
 function scheduleBotMatch(c) {
   if (c.botMatchTimer) return;
+  if (c.code) return;   // 有暗號 → 只配同暗號的真人，絕不塞機器人
   c.botMatchTimer = setTimeout(() => {
     c.botMatchTimer = null;
     if (c.state !== 'waiting') return;
