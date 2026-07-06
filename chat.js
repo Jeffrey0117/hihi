@@ -70,7 +70,7 @@ function pair(a, b) {
 function unpair(c, reason) {
   const p = c.partner;
   c.partner = null; c.state = 'idle';
-  if (p) { p.partner = null; p.state = 'idle'; send(p.ws, { type: 'partner_left', reason }); }
+  if (p) { c.lastPartnerIp = p.ip; p.lastPartnerIp = c.ip; p.partner = null; p.state = 'idle'; send(p.ws, { type: 'partner_left', reason }); }
 }
 function requeueOrMatch(c) {
   dequeue(c);
@@ -144,6 +144,16 @@ function attach(wss) {
           send(ws, { type: 'sys', msg: '已檢舉並離開，不會再配到這個人。' });
           requeueOrMatch(c);
         }
+        return;
+      }
+
+      if (m.type === 'report_last') {   // 對方離開後的檢舉（檢舉剛才那位）
+        if (c.lastPartnerIp) {
+          const r = reports.get(c.lastPartnerIp) || { count: 0 }; r.count++; r.ts = Date.now(); reports.set(c.lastPartnerIp, r);
+          if (r.count >= REPORT_THRESHOLD) blockedUntil.set(c.lastPartnerIp, Date.now() + BLOCK_MS);
+          c.lastPartnerIp = null;
+        }
+        send(ws, { type: 'sys', msg: '已檢舉剛才的對象，謝謝。' });
         return;
       }
 
