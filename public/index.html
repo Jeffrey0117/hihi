@@ -203,7 +203,7 @@
   var AVATARS=['🙂','😀','😎','🥰','😴','🤗','😜','🐱','🐶','🦊','🐰','🐼','🦄','🌸','🌟','🎧'];
   var ws, TOPICS=[], typingTimer=null, lastTyping=0, partnerAv='😀', partnerProf={};
   var sid; try{ sid=sessionStorage.getItem('hihi_sid'); if(!sid){ sid='sid_'+Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem('hihi_sid',sid); } }catch(e){ sid='sid_'+Math.random().toString(36).slice(2); }
-  function setInChat(v){ try{ if(v)sessionStorage.setItem('hihi_inchat','1'); else sessionStorage.removeItem('hihi_inchat'); }catch(e){} }
+  function setInChat(v){ try{ if(v){sessionStorage.setItem('hihi_inchat','1');} else {sessionStorage.removeItem('hihi_inchat'); clearMsgs();} }catch(e){} }
   var prof={avatar:'🙂',bio:''};
   try{ var sp=JSON.parse(localStorage.getItem('hihi_profile')||'{}'); if(sp.avatar)prof.avatar=sp.avatar; if(sp.bio)prof.bio=sp.bio; }catch(e){}
   var sel={mode:'random',gender:null,tags:[],code:'',verified:false};
@@ -285,9 +285,13 @@
   $('cancelBtn').onclick=function(){ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'leave'})); setInChat(false); show('gate'); };
 
   function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||'😀'; var bits=[]; if(p&&p.gender)bits.push(p.gender==='male'?'男':'女'); if(p&&p.tags&&p.tags.length)bits.push(p.tags.join('·')); $('pinfo').textContent='已配對'+(bits.length?' · 對方：'+bits.join(' '):''); }
-  function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
-  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); addSys('已重新連線，繼續聊～（重整前的訊息不會保留）'); $('cinput').focus(); }
-  function addMsg(m,me){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div><div class="bub">'+m.text+'</div><div class="ts">'+fmt(m.ts)+'</div>'; row.querySelector('.av').onclick=(me?openProfile:openPartnerView); el.appendChild(row); el.scrollTop=el.scrollHeight; }
+  function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; clearMsgs(); setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
+  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ renderMsg(mm.text,mm.me,mm.ts); }); $('cinput').focus(); }
+  var chatMsgs=[];
+  function persistMsgs(){ try{ sessionStorage.setItem('hihi_msgs',JSON.stringify(chatMsgs.slice(-200))); }catch(e){} }
+  function clearMsgs(){ chatMsgs=[]; try{ sessionStorage.removeItem('hihi_msgs'); }catch(e){} }
+  function renderMsg(text,me,ts){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); row.innerHTML='<div class="av avc" title="'+(me?'編輯個人資料':'查看對方')+'">'+avHtml(me?prof.avatar:partnerAv)+'</div><div class="bub">'+text+'</div><div class="ts">'+fmt(ts)+'</div>'; row.querySelector('.av').onclick=(me?openProfile:openPartnerView); el.appendChild(row); el.scrollTop=el.scrollHeight; }
+  function addMsg(m,me){ renderMsg(m.text,me,m.ts); chatMsgs.push({text:m.text,me:!!me,ts:m.ts}); persistMsgs(); }
   function addSys(t){ var el=$('cmsgs'); var d=document.createElement('div'); d.className='sys'; d.textContent=t; el.appendChild(d); el.scrollTop=el.scrollHeight; }
   function addLeftPrompt(){ hideTyping(); var el=$('cmsgs'); var w=document.createElement('div'); w.className='leave-prompt';
     w.innerHTML='<button class="rematch-btn">對方已離開聊天，點我重新配對</button><div class="report-hint">有遇到任何問題嗎？你可以進行檢舉</div>';
