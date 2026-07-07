@@ -321,8 +321,16 @@
       else if(d.type==='need_verify'){ show('gate'); alert('請先勾選「我不是機器人」再開始。'); }
       else if(d.type==='blocked'){ show('gate'); alert('由於多次被檢舉，你暫時無法使用聊天（約 30 分鐘）。'); }
     };
-    ws.onclose=function(){ if($('chat').classList.contains('show')) addSys('連線中斷。'); };
+    ws.onclose=function(){ scheduleReconnect(); };
+    ws.onerror=function(){};
   }
+  // 手機切背景/鎖屏/斷網會掐斷 WS → 回到前景或網路恢復時自動接回(15秒內回來還接得到原本的人)
+  function inSession(){ return $('chat').classList.contains('show')||$('wait').classList.contains('show'); }
+  function ensureConnected(){ if(!ws || ws.readyState>=2){ connect(); } }   // 2=CLOSING,3=CLOSED
+  function scheduleReconnect(){ if(document.hidden) return; setTimeout(ensureConnected, 500); }
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) ensureConnected(); });
+  window.addEventListener('focus', ensureConnected);
+  window.addEventListener('online', ensureConnected);
   connect();
 
   function sendStart(token,manual){ var p={type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,bio:prof.bio,avatar:prof.avatar,token:token||'',verify:!!manual,sid:sid};

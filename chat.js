@@ -30,7 +30,7 @@ const waiting = [];
 const reports = new Map();              // ip -> { count, ts }
 const blockedUntil = new Map();         // ip -> until(ts)
 const bySid = new Map();                // sid -> client（重整後斷線重連用）
-const RESUME_GRACE_MS = 15000;          // 斷線後保留配對多久，等重連
+const RESUME_GRACE_MS = 30000;          // 斷線後保留配對多久，等重連(手機切背景/鎖屏也接得回來)
 
 function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch (e) {} }
 function clean(s, max) { return String(s || '').trim().replace(/[<>&"]/g, '').slice(0, max); }
