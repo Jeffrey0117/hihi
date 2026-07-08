@@ -30,7 +30,7 @@ const waiting = [];
 const reports = new Map();              // ip -> { count, ts }
 const blockedUntil = new Map();         // ip -> until(ts)
 const bySid = new Map();                // sid -> client（重整後斷線重連用）
-const RESUME_GRACE_MS = 30000;          // 斷線後保留配對多久，等重連(手機切背景/鎖屏也接得回來)
+const RESUME_GRACE_MS = 120000;         // 斷線後保留配對多久，等重連(手機切背景/鎖屏常好幾分鐘 → 2 分鐘才不會一離開就斷)
 
 function send(ws, obj) { try { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch (e) {} }
 function clean(s, max) { return String(s || '').trim().replace(/[<>&"]/g, '').slice(0, max); }
@@ -270,6 +270,8 @@ function attach(wss) {
         requeueOrMatch(c);
         return;
       }
+
+      if (m.type === 'ping') { send(ws, { type: 'pong' }); return; }   // 心跳：客戶端驗證連線是否還活著(偵測手機凍結後的殭屍 WS)
 
       if (m.type === 'resume') {   // 重整後回來：把還在寬限期的舊配對搬到這條新連線
         const sid = clean(m.sid, 40);

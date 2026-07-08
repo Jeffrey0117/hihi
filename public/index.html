@@ -306,6 +306,7 @@
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
       if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); }
       else if(d.type==='stats'){ /* 在線人數不顯示 */ }
+      else if(d.type==='pong'){ if(pongTimer){ clearTimeout(pongTimer); pongTimer=null; } }   // 心跳回應 → 連線還活著
       else if(d.type==='waiting'){ show('wait'); }
       else if(d.type==='matched'){ startChat(d.partner); }
       else if(d.type==='resumed'){ resumeChat(d.partner); }
@@ -324,13 +325,23 @@
     ws.onclose=function(){ scheduleReconnect(); };
     ws.onerror=function(){};
   }
-  // 手機切背景/鎖屏/斷網會掐斷 WS → 回到前景或網路恢復時自動接回(15秒內回來還接得到原本的人)
+  // 手機切背景/鎖屏/斷網會掐斷 WS → 回前景/網路恢復時「驗證連線」，必要時接回(2分鐘內回來還接得到原本的人)
   function inSession(){ return $('chat').classList.contains('show')||$('wait').classList.contains('show'); }
   function ensureConnected(){ if(!ws || ws.readyState>=2){ connect(); } }   // 2=CLOSING,3=CLOSED
   function scheduleReconnect(){ if(document.hidden) return; setTimeout(ensureConnected, 500); }
-  document.addEventListener('visibilitychange', function(){ if(!document.hidden) ensureConnected(); });
-  window.addEventListener('focus', ensureConnected);
+  // 驗證連線是否還活著：手機凍結後 WS 可能是「殭屍」(readyState 還 OPEN 但已死)。ping 後等 pong，沒回應就強制關掉→onclose 自動重連+resume。
+  var pongTimer=null;
+  function verifyConnection(){
+    if(!ws || ws.readyState!==1){ ensureConnected(); return; }              // 沒開 → 直接重連
+    try{ ws.send(JSON.stringify({type:'ping'})); }catch(e){ try{ws.close();}catch(_){}; return; }  // 送不出去 → 關掉(onclose 會重連)
+    if(pongTimer) clearTimeout(pongTimer);
+    pongTimer=setTimeout(function(){ pongTimer=null; try{ if(ws) ws.close(); }catch(e){} }, 3500);  // 3.5s 內沒 pong → 殭屍 → 關掉重連
+  }
+  function onForeground(){ if(!document.hidden) verifyConnection(); }
+  document.addEventListener('visibilitychange', onForeground);
+  window.addEventListener('focus', onForeground);
   window.addEventListener('online', ensureConnected);
+  setInterval(function(){ if(!document.hidden && inSession()) verifyConnection(); }, 25000);  // 前景每 25s 心跳：保活 + 早期偵測斷線
   connect();
 
   function sendStart(token,manual){ var p={type:'start',nick:'',mode:sel.mode,gender:sel.gender,tags:sel.tags,code:sel.code,bio:prof.bio,avatar:prof.avatar,token:token||'',verify:!!manual,sid:sid};
