@@ -249,8 +249,8 @@
   var AV_FEMALE="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23a05a6b'/%3E%3Cpath d='M17 30c0-10 6-18 15-18s15 8 15 18v12h-5V27c-2-5-5-7-10-7s-8 2-10 7v15h-5z' fill='%234a2e38'/%3E%3Ccircle cx='32' cy='28' r='10.5' fill='%23f6ddc6'/%3E%3Cpath d='M15 55c1-10 8-15 17-15s16 5 17 15z' fill='%23f6ddc6'/%3E%3C/svg%3E";
   var AV_EMPTY="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%233c433d'/%3E%3Ccircle cx='32' cy='26' r='10' fill='%237d8a80'/%3E%3Cpath d='M15 54c1-10 8-15 17-15s16 5 17 15z' fill='%237d8a80'/%3E%3C/svg%3E";
   var ws, TOPICS=[], typingTimer=null, lastTyping=0, partnerAv='', partnerProf={};
-  var sid; try{ sid=sessionStorage.getItem('hihi_sid'); if(!sid){ sid='sid_'+Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem('hihi_sid',sid); } }catch(e){ sid='sid_'+Math.random().toString(36).slice(2); }
-  function setInChat(v){ try{ if(v){sessionStorage.setItem('hihi_inchat','1');} else {sessionStorage.removeItem('hihi_inchat'); clearMsgs();} }catch(e){} }
+  var sid; try{ sid=localStorage.getItem('hihi_sid'); if(!sid){ sid='sid_'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('hihi_sid',sid); } }catch(e){ sid='sid_'+Math.random().toString(36).slice(2); }
+  function setInChat(v){ try{ if(v){localStorage.setItem('hihi_inchat','1');} else {localStorage.removeItem('hihi_inchat'); clearMsgs();} }catch(e){} }
   try{ if(!localStorage.getItem('hihi_first')) localStorage.setItem('hihi_first', String(Date.now())); }catch(e){}   // 記錄第一次來的日子（上線天數用）
   var prof={avatar:'',bio:''};
   try{ var sp=JSON.parse(localStorage.getItem('hihi_profile')||'{}'); if(sp.avatar && (sp.avatar==='male'||sp.avatar==='female'||sp.avatar.indexOf('data:')===0)) prof.avatar=sp.avatar; if(sp.bio)prof.bio=sp.bio; }catch(e){}
@@ -302,7 +302,7 @@
   // 重整照常，靠斷線重連回到原本的聊天（見 ws.onopen 的 resume）。
 
   function connect(){ var proto=location.protocol==='https:'?'wss':'ws'; ws=new WebSocket(proto+'://'+location.host+'/ws');
-    ws.onopen=function(){ try{ if(sessionStorage.getItem('hihi_inchat')==='1') ws.send(JSON.stringify({type:'resume',sid:sid})); }catch(e){} };
+    ws.onopen=function(){ try{ if(localStorage.getItem('hihi_inchat')==='1') ws.send(JSON.stringify({type:'resume',sid:sid})); }catch(e){} };
     ws.onmessage=function(e){ var d; try{d=JSON.parse(e.data)}catch(_){return}
       if(d.type==='hello'){ TOPICS=d.topics||[]; renderTopics(); }
       else if(d.type==='stats'){ /* 在線人數不顯示 */ }
@@ -351,10 +351,10 @@
 
   function setPartnerHead(p){ partnerProf=p||{}; partnerAv=(p&&p.avatar)||''; $('pinfo').textContent='已配對'; }
   function startChat(p){ hideTyping(); $('cmsgs').innerHTML=''; clearMsgs(); setPartnerHead(p); show('chat'); setInChat(true); addSys('已經幫你配對到一個人，開始聊吧～'); if(p.bio) addSys('對方的招呼：'+p.bio); $('cinput').focus(); }
-  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(sessionStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ var row=renderMsg(mm.text,mm.me,mm.ts,mm.mid,mm.reply,mm.react,mm.img); if(mm.recalled) markRecalled(row); }); $('cinput').focus(); }
+  function resumeChat(p){ hideTyping(); $('cmsgs').innerHTML=''; setPartnerHead(p); show('chat'); setInChat(true); try{ chatMsgs=JSON.parse(localStorage.getItem('hihi_msgs')||'[]'); }catch(e){ chatMsgs=[]; } chatMsgs.forEach(function(mm){ var row=renderMsg(mm.text,mm.me,mm.ts,mm.mid,mm.reply,mm.react,mm.img); if(mm.recalled) markRecalled(row); }); $('cinput').focus(); }
   var chatMsgs=[];
-  function persistMsgs(){ try{ sessionStorage.setItem('hihi_msgs',JSON.stringify(chatMsgs.slice(-200))); }catch(e){} }
-  function clearMsgs(){ chatMsgs=[]; try{ sessionStorage.removeItem('hihi_msgs'); }catch(e){} }
+  function persistMsgs(){ try{ localStorage.setItem('hihi_msgs',JSON.stringify(chatMsgs.slice(-200))); }catch(e){} }
+  function clearMsgs(){ chatMsgs=[]; try{ localStorage.removeItem('hihi_msgs'); }catch(e){} }
   var REACTS=['👍','❤️','😮','😂','😡'];
   function renderMsg(text,me,ts,mid,reply,react,img){ var el=$('cmsgs'); var row=document.createElement('div'); row.className='row '+(me?'me':'other'); if(mid)row.setAttribute('data-mid',mid);
     var rq=(reply&&reply.text)?'<div class="reply-quote">↩ '+reply.text+'</div>':'';
